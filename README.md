@@ -159,3 +159,7 @@ Contributions are welcome. See [docs/contributing.md](docs/contributing.md) for 
 ## License
 
 MIT — see [LICENSE](LICENSE).
+
+---
+
+> **on the name** — *code-chan* is inspired by *vivachan* (विवेचन), a Sanskrit word meaning analysis or critical examination. chan for short.
