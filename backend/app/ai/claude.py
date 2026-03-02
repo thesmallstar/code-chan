@@ -77,22 +77,73 @@ Rules:
 - If there are no issues, return an empty comments array and a positive assessment.
 - Return ONLY the JSON object, no other text."""
 
+_PLAN_CHUNKS_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "chunks": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "title": {"type": "string"},
+                    "purpose": {"type": "string"},
+                    "walkthrough": {"type": "string"},
+                    "summary": {"type": "string"},
+                    "files": {"type": "array", "items": {"type": "string"}},
+                    "review_order": {"type": "array", "items": {"type": "string"}},
+                },
+                "required": ["title", "purpose", "walkthrough", "summary", "files", "review_order"],
+            },
+        },
+    },
+    "required": ["chunks"],
+}
+
+_CHUNK_REVIEW_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "assessment": {"type": "string", "description": "Markdown overall assessment of this chunk"},
+        "comments": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "path": {"type": "string"},
+                    "line": {"type": "integer"},
+                    "side": {"type": "string", "enum": ["RIGHT"]},
+                    "body": {"type": "string", "description": "Markdown review comment body"},
+                },
+                "required": ["path", "line", "side", "body"],
+            },
+        },
+    },
+    "required": ["assessment", "comments"],
+}
+
 _CHAT_SYSTEM = """\
 You are a code review assistant helping a developer refine their review comments.
 You have access to the repository files — read them if needed for better context.
 Help the user craft clear, specific, and constructive review comments. Be direct and concise."""
 
 
-def _run_claude(prompt: str, cwd: Optional[Path] = None) -> str:
+def _run_claude(
+    prompt: str,
+    cwd: Optional[Path] = None,
+    json_schema: Optional[dict] = None,
+) -> str:
     """
     Run `claude -p <prompt>` and return stdout.
     Unsets CLAUDECODE so nested invocations from inside a Claude Code session work.
     Runs from `cwd` when provided so Claude can navigate the repo files.
+    When json_schema is provided, enforces structured JSON output via --json-schema.
     """
     env = {k: v for k, v in os.environ.items() if k != "CLAUDECODE"}
+    cmd = ["claude", "-p", prompt]
+    if json_schema:
+        cmd += ["--output-format", "json", "--json-schema", json.dumps(json_schema)]
     try:
         result = subprocess.run(
-            ["claude", "-p", prompt],
+            cmd,
             capture_output=True,
             text=True,
             timeout=300,
@@ -154,7 +205,7 @@ class ClaudeProvider(AIProvider):
             f"Description: {pr_data.get('body') or '(none)'}\n\n"
             f"Changed files ({len(files)}):\n\n{file_context}"
         )
-        raw = _run_claude(prompt, cwd=repo_path)
+        raw = _run_claude(prompt, cwd=repo_path, json_schema=_PLAN_CHUNKS_SCHEMA)
         return _parse_chunk_plan(raw, files)
 
     def summarize_pr(
@@ -198,15 +249,11 @@ class ClaudeProvider(AIProvider):
             f"Commentable lines per file (only comment on these): {json.dumps(commentable)}\n\n"
             f"Diffs:\n{diff_ctx}"
         )
-        raw = _run_claude(prompt, cwd=repo_path)
-        if raw.startswith("```"):
-            raw = raw.split("```")[1]
-            if raw.startswith("json"):
-                raw = raw[4:]
-            raw = raw.strip()
+        raw = _run_claude(prompt, cwd=repo_path, json_schema=_CHUNK_REVIEW_SCHEMA)
         try:
-            result = json.loads(raw)
-        except json.JSONDecodeError:
+            result = _unwrap_json_envelope(raw)
+        except (json.JSONDecodeError, AttributeError):
+            logger.warning("Failed to parse review JSON (%d chars): %s…", len(raw), raw[:200])
             result = {"assessment": raw, "comments": []}
         return _validate_and_anchor_comments(result, line_map)
 
@@ -232,18 +279,28 @@ class ClaudeProvider(AIProvider):
         return _run_claude(prompt, cwd=repo_path)
 
 
-def _parse_chunk_plan(raw: str, files: list[dict]) -> list[dict]:
-    """Parse LLM chunk plan JSON; fall back gracefully if malformed."""
+def _unwrap_json_envelope(raw: str) -> dict:
+    """Parse JSON from claude output, handling the --output-format json envelope."""
     text = raw.strip()
     if text.startswith("```"):
         text = text.split("```")[1]
         if text.startswith("json"):
             text = text[4:]
         text = text.strip()
+    data = json.loads(text)
+    # --output-format json + --json-schema puts data in "structured_output"
+    result = data.get("structured_output") or data.get("result") or data
+    if isinstance(result, str):
+        result = json.loads(result)
+    return result
+
+
+def _parse_chunk_plan(raw: str, files: list[dict]) -> list[dict]:
+    """Parse LLM chunk plan JSON; fall back gracefully if malformed."""
     try:
-        data = json.loads(text)
+        data = _unwrap_json_envelope(raw)
         chunks = data.get("chunks", [])
-    except json.JSONDecodeError:
+    except (json.JSONDecodeError, AttributeError):
         logger.warning("Could not parse chunk plan JSON, falling back to single chunk")
         chunks = []
 
