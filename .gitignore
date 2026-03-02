@@ -1,0 +1,28 @@
+# Dependencies
+node_modules/
+__pycache__/
+*.pyc
+.venv/
+
+# Build
+dist/
+build/
+
+# Data
+data/
+
+# Local repo clones (for AI file access)
+repos/
+
+# Environment
+.env
+
+# Generated
+backend/openapi.json
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store

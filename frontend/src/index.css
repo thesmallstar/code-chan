@@ -1,0 +1,43 @@
+@import "tailwindcss";
+
+:root {
+  --font-sans: 'IBM Plex Sans', system-ui, sans-serif;
+  --font-mono: 'IBM Plex Mono', 'Fira Code', monospace;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  font-family: var(--font-sans);
+  background: #f8f9fa;
+  color: #1a1a2e;
+  margin: 0;
+}
+
+code, pre, .mono {
+  font-family: var(--font-mono);
+}
+
+/* Diff view */
+.diff-addition { background: #e6ffec; color: #1a4731; }
+.diff-deletion  { background: #ffebe9; color: #67060c; }
+.diff-context   { background: #fff; color: #57606a; }
+.diff-hunk      { background: #f1f8ff; color: #0969da; font-size: 0.78rem; }
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: #f1f1f1; }
+::-webkit-scrollbar-thumb { background: #c9cdd2; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #999; }
+
+/* Markdown prose */
+.prose h1, .prose h2, .prose h3 { font-weight: 600; margin: 0.75em 0 0.4em; }
+.prose p { margin: 0 0 0.75em; line-height: 1.6; }
+.prose ul, .prose ol { padding-left: 1.5em; margin: 0 0 0.75em; }
+.prose li { margin-bottom: 0.25em; }
+.prose code { font-family: var(--font-mono); background: #f3f4f6; padding: 0.1em 0.35em; border-radius: 3px; font-size: 0.88em; }
+.prose pre { background: #f3f4f6; padding: 1em; border-radius: 6px; overflow-x: auto; }
+.prose pre code { background: none; padding: 0; }
+.prose blockquote { border-left: 3px solid #d0d7de; margin: 0; padding-left: 1em; color: #57606a; }
