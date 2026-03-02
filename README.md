@@ -10,7 +10,9 @@ Paste a GitHub PR link → chan reads the whole diff, groups changes into logica
 
 ![Landing page — paste a PR link and see recent reviews](docs/screenshot-landing.png)
 
-![Review instance — chan's take, chunk walkthrough, inline suggestions](docs/screenshot-review.png)
+![Review instance — chan's take on the PR](docs/screenshot-review.png)
+
+![Chunk view — walkthrough, diff, chat, and draft comments](docs/screenshot-chunk.png)
 
 ---
 
