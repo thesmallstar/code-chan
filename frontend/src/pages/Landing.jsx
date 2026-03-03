@@ -186,8 +186,12 @@ export default function Landing() {
     setStartingUrl(url)
     try {
       const { review_id } = await api.createReview(url, 'claude')
-      navigate(`/review/${review_id}`)
+      const newReview = await api.getReview(review_id)
+      setReviewRequests((prev) => prev.filter((r) => r.pr_url !== url))
+      setReviews((prev) => [...prev, newReview])
     } catch {
+      // leave the item in place on error
+    } finally {
       setStartingUrl(null)
     }
   }
