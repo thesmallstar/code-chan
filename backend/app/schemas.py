@@ -197,6 +197,11 @@ class ReviewRequestItem(BaseModel):
     labels: list[str] = []
 
 
+class ReviewRequestsResponse(BaseModel):
+    items: list[ReviewRequestItem]
+    last_synced_at: Optional[datetime] = None
+
+
 # ── Health ────────────────────────────────────────────────────────────────────
 
 class HealthResponse(BaseModel):

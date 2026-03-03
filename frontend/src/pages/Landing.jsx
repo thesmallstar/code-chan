@@ -1,7 +1,29 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api } from '../lib/api'
 import StatusBadge from '../components/StatusBadge'
+
+const SYNC_CACHE_KEY = 'reviewRequestsLastSync'
+const ONE_HOUR_MS = 60 * 60 * 1000
+
+function isStale() {
+  const stored = localStorage.getItem(SYNC_CACHE_KEY)
+  if (!stored) return true
+  return Date.now() - Number(stored) > ONE_HOUR_MS
+}
+
+function saveLastSync() {
+  localStorage.setItem(SYNC_CACHE_KEY, String(Date.now()))
+}
+
+function formatLastSync(ts) {
+  if (!ts) return null
+  const ms = Date.now() - new Date(ts).getTime()
+  const mins = Math.floor(ms / 60000)
+  if (mins < 1) return 'just now'
+  if (mins < 60) return `${mins}m ago`
+  return `${Math.floor(mins / 60)}h ago`
+}
 
 function GitHubStatus({ status, username }) {
   if (status === 'checking') {
@@ -145,9 +167,11 @@ export default function Landing() {
   const [error, setError] = useState(null)
   const [reviews, setReviews] = useState([])
   const [reviewRequests, setReviewRequests] = useState([])
+  const [lastSyncedAt, setLastSyncedAt] = useState(null)
   const [requestDays, setRequestDays] = useState(14)
   const [requestsLoading, setRequestsLoading] = useState(false)
   const [startingUrl, setStartingUrl] = useState(null)
+  const syncIntervalRef = useRef(null)
 
   const checkGitHub = () => {
     setGhStatus({ state: 'checking', username: null })
@@ -163,10 +187,23 @@ export default function Landing() {
     api.listReviews().then(setReviews).catch(() => {})
   }
 
+  const applyRequestsResponse = ({ items, last_synced_at }) => {
+    setReviewRequests(items)
+    if (last_synced_at) setLastSyncedAt(last_synced_at)
+  }
+
   const loadReviewRequests = (days) => {
     setRequestsLoading(true)
     api.getReviewRequests(days)
-      .then(setReviewRequests)
+      .then(applyRequestsResponse)
+      .catch(() => setReviewRequests([]))
+      .finally(() => setRequestsLoading(false))
+  }
+
+  const syncReviewRequests = (days) => {
+    setRequestsLoading(true)
+    api.syncReviewRequests(days)
+      .then((data) => { applyRequestsResponse(data); saveLastSync() })
       .catch(() => setReviewRequests([]))
       .finally(() => setRequestsLoading(false))
   }
@@ -174,12 +211,23 @@ export default function Landing() {
   useEffect(() => {
     checkGitHub()
     loadReviews()
-    loadReviewRequests(requestDays)
+    if (isStale()) {
+      syncReviewRequests(requestDays)
+    } else {
+      loadReviewRequests(requestDays)
+    }
+
+    syncIntervalRef.current = setInterval(() => syncReviewRequests(requestDays), ONE_HOUR_MS)
+    return () => clearInterval(syncIntervalRef.current)
   }, [])
 
   const handleDaysChange = (days) => {
     setRequestDays(days)
     loadReviewRequests(days)
+  }
+
+  const handleManualRefresh = () => {
+    syncReviewRequests(requestDays)
   }
 
   const handleStartReview = async (url) => {
@@ -289,7 +337,22 @@ export default function Landing() {
           {/* ── Review requests ── */}
           <div className="px-8 pt-10 pb-6 border-b border-gray-100">
             <div className="flex items-center justify-between mb-3">
-              <h2 className="text-lg font-semibold text-gray-900">Requested Reviews</h2>
+              <div>
+                <h2 className="text-lg font-semibold text-gray-900">Requested Reviews</h2>
+                {lastSyncedAt && (
+                  <p className="text-xs text-gray-400 mt-0.5">
+                    synced {formatLastSync(lastSyncedAt)}
+                    {' · '}
+                    <button
+                      onClick={handleManualRefresh}
+                      disabled={requestsLoading}
+                      className="underline hover:text-gray-600 disabled:opacity-50"
+                    >
+                      refresh
+                    </button>
+                  </p>
+                )}
+              </div>
               <div className="flex items-center gap-1">
                 {DAY_OPTIONS.map(({ label, value }) => (
                   <button

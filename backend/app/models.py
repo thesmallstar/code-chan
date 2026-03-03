@@ -107,6 +107,23 @@ class ChatMessage(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
 
+class ReviewRequestCache(Base):
+    __tablename__ = "review_request_cache"
+
+    id = Column(Integer, primary_key=True, index=True)
+    pr_url = Column(String, nullable=False, unique=True)
+    title = Column(String)
+    repo_full_name = Column(String)
+    pr_number = Column(Integer)
+    author = Column(String)
+    updated_at = Column(DateTime, nullable=True)
+    labels_json = Column(Text, default="[]")
+    last_synced_at = Column(DateTime, nullable=True)
+
+    def get_labels(self) -> list:
+        return json.loads(self.labels_json or "[]")
+
+
 class DraftComment(Base):
     __tablename__ = "draft_comments"
 
