@@ -312,11 +312,41 @@ export default function ReviewInstance() {
   const [selectedChunk, setSelectedChunk] = useState(null)
   const [draftTrigger, setDraftTrigger] = useState(0)
   const [error, setError] = useState(null)
+  const [doneChunks, setDoneChunks] = useState(new Set())
+
+  const handleToggleDone = useCallback(async (chunkId) => {
+    // Optimistic update
+    setDoneChunks((prev) => {
+      const next = new Set(prev)
+      if (next.has(chunkId)) next.delete(chunkId)
+      else next.add(chunkId)
+      return next
+    })
+    try {
+      const updated = await api.toggleChunkDone(chunkId)
+      setDoneChunks((prev) => {
+        const next = new Set(prev)
+        if (updated.human_done) next.add(chunkId)
+        else next.delete(chunkId)
+        return next
+      })
+    } catch (e) {
+      console.error('Failed to save done state:', e)
+      // Revert optimistic update
+      setDoneChunks((prev) => {
+        const next = new Set(prev)
+        if (next.has(chunkId)) next.delete(chunkId)
+        else next.add(chunkId)
+        return next
+      })
+    }
+  }, [])
 
   const loadReview = useCallback(() => {
     api.getReview(id)
       .then((data) => {
         setReview(data)
+        setDoneChunks(new Set(data.chunks.filter(c => c.human_done).map(c => c.id)))
         setError(null)
       })
       .catch((err) => setError(err.message))
@@ -403,10 +433,29 @@ export default function ReviewInstance() {
       <div className="flex-1 flex overflow-hidden">
         {/* Sidebar */}
         <aside className="w-64 bg-white border-r border-gray-200 flex flex-col overflow-hidden shrink-0">
-          <div className="px-3 pt-3 pb-1">
-            <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wide px-1">
-              Review Chunks
-            </h2>
+          <div className="px-3 pt-3 pb-2">
+            <div className="flex items-center justify-between px-1 mb-2">
+              <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                Review Chunks
+              </h2>
+              <span className="text-xs text-gray-400 mono">
+                {doneChunks.size}/{review.chunks?.length ?? 0} done
+              </span>
+            </div>
+            {/* Progress bar */}
+            {(review.chunks?.length ?? 0) > 0 && (
+              <div className="px-1">
+                <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-green-500 rounded-full transition-all duration-300"
+                    style={{ width: `${(doneChunks.size / (review.chunks?.length ?? 1)) * 100}%` }}
+                  />
+                </div>
+                <p className="text-xs text-gray-400 mt-1">
+                  {(review.chunks?.length ?? 0) - doneChunks.size} chunk{(review.chunks?.length ?? 0) - doneChunks.size !== 1 ? 's' : ''} left
+                </p>
+              </div>
+            )}
           </div>
           <div className="flex-1 overflow-y-auto">
             <ChunkList
@@ -414,6 +463,8 @@ export default function ReviewInstance() {
               selectedId={selectedChunk?.id}
               onSelect={handleChunkSelect}
               totalChunks={review.chunks?.length ?? 0}
+              doneChunks={doneChunks}
+              onToggleDone={handleToggleDone}
             />
           </div>
           <div className="border-t border-gray-200 p-2">

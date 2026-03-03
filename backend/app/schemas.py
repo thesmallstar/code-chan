@@ -44,6 +44,7 @@ class ReviewChunkSummary(BaseModel):
     chunk_summary: Optional[str] = None
     file_paths: list[str] = []
     status: str
+    human_done: bool = False
 
     class Config:
         from_attributes = True
@@ -79,6 +80,7 @@ class ReviewChunkDetail(BaseModel):
     status: str
     ai_suggestions_md: Optional[str] = None
     ai_comments: list[dict] = []
+    human_done: bool = False
 
     class Config:
         from_attributes = True

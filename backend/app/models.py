@@ -1,7 +1,7 @@
 import json
 from datetime import datetime
 
-from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey, UniqueConstraint, func
+from sqlalchemy import Boolean, Column, Integer, String, Text, DateTime, ForeignKey, UniqueConstraint, func
 from app.database import Base
 
 
@@ -58,6 +58,9 @@ class ReviewChunk(Base):
     status = Column(String, default="PENDING")
     ai_suggestions_md = Column(Text)
     ai_comments_json = Column(Text, default="[]") # JSON: list[{path, line, side, body}]
+
+    # Human review progress
+    human_done = Column(Boolean, default=False)
 
     def get_file_paths(self) -> list:
         return json.loads(self.file_paths or "[]")
