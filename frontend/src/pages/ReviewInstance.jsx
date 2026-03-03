@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import ReactMarkdown from 'react-markdown'
 import { api } from '../lib/api'
+import { COMMENT_LABELS, labelClasses } from '../lib/labels'
 import StatusBadge from '../components/StatusBadge'
 import ChunkList from '../components/ChunkList'
 import DiffView from '../components/DiffView'
@@ -11,6 +12,82 @@ import ThreadsPanel from '../components/ThreadsPanel'
 
 const POLLING_INTERVAL = 3000
 const ACTIVE_STATUSES = ['PENDING', 'SYNCING', 'SUMMARIZING', 'CHUNKING', 'AI_RUNNING']
+
+const REVIEW_ACTIONS = [
+  { event: 'COMMENT',         label: 'Comment',         cls: 'border-gray-300 text-gray-700 hover:bg-gray-50' },
+  { event: 'APPROVE',         label: 'Approve',         cls: 'border-green-400 text-green-700 hover:bg-green-50' },
+  { event: 'REQUEST_CHANGES', label: 'Request Changes', cls: 'border-red-400 text-red-600 hover:bg-red-50' },
+]
+
+// ── Submit review panel ───────────────────────────────────────────────────────
+function SubmitReviewPanel({ reviewId }) {
+  const [event, setEvent] = useState('COMMENT')
+  const [body, setBody] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+  const [submitted, setSubmitted] = useState(null)
+  const [error, setError] = useState(null)
+
+  const handleSubmit = async () => {
+    setSubmitting(true)
+    setError(null)
+    try {
+      const res = await api.submitReview(reviewId, event, body)
+      setSubmitted(res)
+      setBody('')
+    } catch (e) {
+      setError(e.message)
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  if (submitted) {
+    return (
+      <div className="px-3 py-2.5 bg-green-50 border-b border-green-200 text-xs text-green-700 flex items-center gap-2">
+        <span>Review submitted — {submitted.state?.toLowerCase()}</span>
+        {submitted.html_url && (
+          <a href={submitted.html_url} target="_blank" rel="noopener noreferrer" className="underline">view on GitHub</a>
+        )}
+        <button onClick={() => setSubmitted(null)} className="ml-auto text-green-500 hover:text-green-700">✕</button>
+      </div>
+    )
+  }
+
+  return (
+    <div className="px-3 py-3 border-b border-gray-200 space-y-2">
+      <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Submit Review</h3>
+      <div className="flex gap-1.5 flex-wrap">
+        {REVIEW_ACTIONS.map(({ event: e, label, cls }) => (
+          <button
+            key={e}
+            onClick={() => setEvent(e)}
+            className={`text-xs px-2.5 py-1 rounded border font-medium transition-colors ${cls}
+              ${event === e ? 'ring-2 ring-offset-1 ring-gray-400' : ''}`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+      <textarea
+        value={body}
+        onChange={(e) => setBody(e.target.value)}
+        placeholder={event === 'REQUEST_CHANGES' ? 'Describe required changes… (required)' : 'Overall comment (optional)'}
+        rows={3}
+        className="w-full text-xs px-2 py-1.5 border border-gray-300 rounded resize-none
+          focus:outline-none focus:ring-1 focus:ring-gray-900"
+      />
+      {error && <p className="text-xs text-red-500">{error}</p>}
+      <button
+        onClick={handleSubmit}
+        disabled={submitting || (event === 'REQUEST_CHANGES' && !body.trim())}
+        className="w-full text-xs py-1.5 bg-gray-900 text-white rounded hover:bg-gray-800
+          disabled:opacity-40 disabled:cursor-not-allowed"
+      >
+        {submitting ? 'Submitting…' : `Submit ${event === 'APPROVE' ? 'Approval' : event === 'REQUEST_CHANGES' ? 'Request' : 'Comment'}`}
+      </button>
+    </div>
+  )
+}
 
 // ── Top bar ──────────────────────────────────────────────────────────────────
 function TopBar({ review, onSync, navigate }) {
@@ -105,6 +182,7 @@ function ChunkPanel({ chunkSummary, totalChunks, draftTrigger, onDraftTrigger })
   const [runningAI, setRunningAI] = useState(false)
   const [addingComment, setAddingComment] = useState(null)
   const [newCommentBody, setNewCommentBody] = useState('')
+  const [selectedLabel, setSelectedLabel] = useState(null)
 
   useEffect(() => {
     if (!chunkSummary) return
@@ -140,10 +218,12 @@ function ChunkPanel({ chunkSummary, totalChunks, draftTrigger, onDraftTrigger })
         line: addingComment.line,
         side: addingComment.side,
         body_md: newCommentBody.trim(),
+        label: selectedLabel,
       })
       onDraftTrigger()
       setAddingComment(null)
       setNewCommentBody('')
+      setSelectedLabel(null)
     } catch (e) {
       console.error(e)
     }
@@ -270,6 +350,22 @@ function ChunkPanel({ chunkSummary, totalChunks, draftTrigger, onDraftTrigger })
               >
                 ✕
               </button>
+            </div>
+            {/* Label picker */}
+            <div className="flex items-center gap-1.5 flex-wrap mb-2">
+              {COMMENT_LABELS.map(({ value }) => (
+                <button
+                  key={value}
+                  onClick={() => setSelectedLabel(selectedLabel === value ? null : value)}
+                  className={`text-xs px-2 py-0.5 rounded-full border transition-colors
+                    ${selectedLabel === value
+                      ? `${labelClasses(value)} border-transparent ring-1 ring-gray-400`
+                      : 'border-gray-200 text-gray-400 hover:bg-gray-50'
+                    }`}
+                >
+                  {value}
+                </button>
+              ))}
             </div>
             <textarea
               value={newCommentBody}
@@ -433,6 +529,9 @@ export default function ReviewInstance() {
       <div className="flex-1 flex overflow-hidden">
         {/* Sidebar */}
         <aside className="w-64 bg-white border-r border-gray-200 flex flex-col overflow-hidden shrink-0">
+          {!isActive && review.status !== 'ERROR' && (
+            <SubmitReviewPanel reviewId={id} />
+          )}
           <div className="px-3 pt-3 pb-2">
             <div className="flex items-center justify-between px-1 mb-2">
               <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">

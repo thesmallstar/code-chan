@@ -146,3 +146,17 @@ class GitHubClient:
             f"/repos/{owner}/{repo}/issues/{issue_number}/comments",
             {"body": body},
         )
+
+    def submit_pull_request_review(
+        self,
+        owner: str,
+        repo: str,
+        pr_number: int,
+        commit_id: str,
+        event: str,
+        body: str = "",
+    ) -> dict:
+        return self._post(
+            f"/repos/{owner}/{repo}/pulls/{pr_number}/reviews",
+            {"commit_id": commit_id, "event": event, "body": body},
+        )
