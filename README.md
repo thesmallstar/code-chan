@@ -2,6 +2,10 @@
 
 ---
 
+<div align="center">
+  <img src="docs/logo.png" alt="code-chan logo" width="120" />
+</div>
+
 # code-chan
 
 **AI-assisted code review, powered by Claude Code CLI.**

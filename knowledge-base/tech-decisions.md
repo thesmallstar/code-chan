@@ -42,6 +42,27 @@
 
 ---
 
+## Re-review as a tab, not a separate page/route
+
+- **Date:** 2026-03-03
+- **Status:** Decided
+- **Decision:** Re-review results (changes summary + thread opinions) are shown inside a "Re-review" tab on the existing ReviewInstance page, not as a separate `/re-review/:id` route
+- **Why:** The user wants continuity — "built on top of the review view". Navigating to a new page loses context (which chunk was selected, thread state, etc.). A tab preserves layout and sidepanel while adding new context.
+- **Alternatives considered:** Separate `/re-review/:id` page (built first, then removed per user feedback)
+- **Trade-offs:** `ReReviewPanel` holds its own state (re-review job ID + polling) independently; if user leaves and returns to the tab, state is reset — acceptable for v0
+
+---
+
+## GitHub `position` field for outdated thread detection
+
+- **Date:** 2026-03-03
+- **Status:** Decided
+- **Decision:** Store `position` from GitHub review comment API on `ReviewThread`; `position === null` means the comment is on a stale/outdated diff
+- **Why:** GitHub itself uses `null` position to indicate an outdated comment; no extra API calls needed
+- **Trade-offs:** `position` only available for `REVIEW_COMMENT` type, not `ISSUE_COMMENT`
+
+---
+
 ## Heuristic chunking (no embeddings in v0)
 
 - **Date:** 2026-03-01
