@@ -17,34 +17,45 @@ Contributions are welcome — whether it's a bug fix, a new feature, better prom
 ```
 backend/app/
 ├── ai/
-│   ├── base.py         ← AIProvider abstract class
-│   └── claude.py       ← ClaudeProvider (subprocess → claude CLI)
+│   ├── base.py              ← AIProvider abstract class (5 abstract methods)
+│   └── claude.py            ← ClaudeProvider (subprocess → claude CLI)
 ├── github/
-│   ├── client.py       ← GitHub REST API calls
-│   ├── diff_parser.py  ← Unified diff → commentable line map
-│   └── clone_manager.py← Repo cloning, checkout
+│   ├── client.py            ← GitHub REST API calls
+│   ├── diff_parser.py       ← Unified diff → commentable line map
+│   └── clone_manager.py     ← Repo cloning, checkout
 ├── reviews/
-│   └── service.py      ← Orchestrates the full pipeline
+│   ├── service.py           ← Orchestrates the full review pipeline
+│   └── re_review_service.py ← Re-review background task
 ├── routers/
 │   ├── reviews.py
 │   ├── chunks.py
-│   └── threads.py
-├── models.py           ← SQLAlchemy ORM
-├── schemas.py          ← Pydantic schemas
+│   ├── threads.py
+│   ├── re_reviews.py        ← POST create + GET poll
+│   └── github.py            ← review requests sync/cache
+├── models.py                ← SQLAlchemy ORM
+├── schemas.py               ← Pydantic schemas
 └── main.py
 
 frontend/src/
 ├── pages/
-│   ├── Landing.jsx
-│   └── ReviewInstance.jsx
+│   ├── Landing.jsx          ← review requests + recent reviews
+│   └── ReviewInstance.jsx   ← chunk view + threads + re-review tab
 ├── components/
 │   ├── ChunkList.jsx
 │   ├── DiffView.jsx
 │   ├── ChatPanel.jsx
 │   ├── DraftComments.jsx
-│   ├── ThreadsPanel.jsx
+│   ├── ThreadsPanel.jsx     ← colored diff hunks, outdated badge, resolve
 │   └── StatusBadge.jsx
-└── lib/api.js          ← HTTP client
+└── lib/api.js               ← HTTP client
+
+backend/tests/
+├── test_chunks.py
+├── test_reviews.py
+├── test_github.py
+├── test_threads.py          ← resolve toggle
+├── test_re_reviews.py       ← re-review create/poll, cache deletion
+└── test_helpers.py
 ```
 
 ---
@@ -52,11 +63,13 @@ frontend/src/
 ## Adding a new AI provider
 
 1. Create `backend/app/ai/yourprovider.py`
-2. Subclass `AIProvider` from `base.py` and implement all four methods:
+2. Subclass `AIProvider` from `base.py` and implement all five methods:
    - `plan_chunks(pr_data, files, repo_path) -> list[dict]`
    - `summarize_pr(pr_data, files, repo_path) -> str`
    - `review_chunk(title, file_diffs, line_map, repo_path) -> dict`
    - `chat(chunk_context, messages, repo_path) -> str`
+   - `re_review(pr_data, diff_files, root_threads, issue_comments) -> dict`
+     Returns `{changes_summary: str, thread_opinions: [{github_id, should_resolve, reason}]}`
 3. Register it in `backend/app/reviews/service.py`:
    ```python
    from app.ai.yourprovider import YourProvider
@@ -98,7 +111,7 @@ Use conventional commits (loosely):
 
 ## What would be really useful
 
-- [ ] **Tests** — there are none yet. Any coverage is welcome, especially for `diff_parser.py` and the review service.
+- [ ] **More test coverage** — `diff_parser.py`, the re-review service, and the chunker are under-tested
 - [ ] **GitLab / Bitbucket support** — the GitHub client is abstracted enough that a new `GitProvider` interface would work
 - [ ] **Additional AI providers** — Codex (OpenAI), Gemini, local Ollama models
 - [ ] **GitHub App** — so chan can run automatically on new PRs via webhook
