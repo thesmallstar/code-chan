@@ -1,7 +1,7 @@
 -include .env
 export
 
-.PHONY: install dev kill frontend backend clean migrate makemigration
+.PHONY: install dev kill frontend backend clean migrate makemigration test
 
 install:
 	cd frontend && npm install
@@ -19,6 +19,9 @@ frontend:
 
 backend:
 	cd backend && uv run uvicorn app.main:app --reload --host 0.0.0.0 --port $${BACKEND_PORT:-8000}
+
+test:
+	cd backend && uv run pytest tests/ -v
 
 migrate:
 	cd backend && uv run alembic upgrade head

@@ -19,6 +19,8 @@ class PullRequest(Base):
     base_sha = Column(String)
     url = Column(String)
     last_synced_at = Column(DateTime)
+    pr_state = Column(String, nullable=True)          # open | closed | merged
+    review_decision = Column(String, nullable=True)   # APPROVED | CHANGES_REQUESTED | REVIEW_REQUIRED
 
     __table_args__ = (UniqueConstraint("owner", "repo", "pr_number"),)
 
