@@ -1,16 +1,20 @@
 import os
 from contextlib import asynccontextmanager
 
+from alembic import command
+from alembic.config import Config
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.database import Base, engine
 from app.routers import chunks, github, reviews, threads
+
+ALEMBIC_INI = os.path.join(os.path.dirname(__file__), "..", "alembic.ini")
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    Base.metadata.create_all(bind=engine)
+    alembic_cfg = Config(ALEMBIC_INI)
+    command.upgrade(alembic_cfg, "head")
     yield
 
 

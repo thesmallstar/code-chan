@@ -31,6 +31,7 @@ export const api = {
 
   // Chunks
   getChunk: (id) => req('GET', `/api/chunks/${id}`),
+  toggleChunkDone: (chunkId) => req('PATCH', `/api/chunks/${chunkId}/done`),
   runAI: (chunkId) => req('POST', `/api/chunks/${chunkId}/run-ai`),
   getChat: (chunkId) => req('GET', `/api/chunks/${chunkId}/chat`),
   sendChat: (chunkId, message) => req('POST', `/api/chunks/${chunkId}/chat`, { message }),

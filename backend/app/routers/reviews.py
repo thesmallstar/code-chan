@@ -22,6 +22,7 @@ def _chunk_summary(chunk: ReviewChunk) -> ReviewChunkSummary:
         title=chunk.title,
         file_paths=chunk.get_file_paths(),
         status=chunk.status,
+        human_done=chunk.human_done or False,
     )
 
 

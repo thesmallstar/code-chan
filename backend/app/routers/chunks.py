@@ -34,7 +34,18 @@ def _chunk_to_detail(chunk: ReviewChunk) -> ReviewChunkDetail:
         status=chunk.status,
         ai_suggestions_md=chunk.ai_suggestions_md,
         ai_comments=chunk.get_ai_comments(),
+        human_done=chunk.human_done or False,
     )
+
+
+@router.patch("/{chunk_id}/done", response_model=ReviewChunkDetail)
+def set_chunk_done(chunk_id: int, db: Session = Depends(get_db)):
+    chunk = db.get(ReviewChunk, chunk_id)
+    if not chunk:
+        raise HTTPException(status_code=404, detail="Chunk not found")
+    chunk.human_done = not chunk.human_done
+    db.commit()
+    return _chunk_to_detail(chunk)
 
 
 @router.get("/{chunk_id}", response_model=ReviewChunkDetail)
