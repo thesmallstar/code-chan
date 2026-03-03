@@ -147,6 +147,23 @@ class GitHubClient:
             {"body": body},
         )
 
+    def get_pull_request_review_decision(self, owner: str, repo: str, pr_number: int) -> str:
+        """Return APPROVED, CHANGES_REQUESTED, or REVIEW_REQUIRED based on latest reviews."""
+        reviews = self._get(f"/repos/{owner}/{repo}/pulls/{pr_number}/reviews")
+        # Keep only the most recent review state per reviewer
+        latest: dict[str, str] = {}
+        for r in reviews:
+            login = r.get("user", {}).get("login", "")
+            state = r.get("state", "")
+            if state not in ("DISMISSED", "PENDING"):
+                latest[login] = state
+        states = set(latest.values())
+        if "CHANGES_REQUESTED" in states:
+            return "CHANGES_REQUESTED"
+        if states == {"APPROVED"} or ("APPROVED" in states and "CHANGES_REQUESTED" not in states):
+            return "APPROVED"
+        return "REVIEW_REQUIRED"
+
     def submit_pull_request_review(
         self,
         owner: str,

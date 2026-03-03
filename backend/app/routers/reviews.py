@@ -49,6 +49,9 @@ def _build_review_response(review: ReviewInstance, db: Session) -> ReviewInstanc
             author=pr.author,
             head_sha=pr.head_sha,
             url=pr.url,
+            last_synced_at=pr.last_synced_at,
+            pr_state=pr.pr_state,
+            review_decision=pr.review_decision,
         )
     return ReviewInstanceResponse(
         id=review.id,

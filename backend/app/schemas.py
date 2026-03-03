@@ -24,6 +24,9 @@ class PullRequestInfo(BaseModel):
     author: Optional[str] = None
     head_sha: Optional[str] = None
     url: Optional[str] = None
+    last_synced_at: Optional[datetime] = None
+    pr_state: Optional[str] = None          # open | closed | merged
+    review_decision: Optional[str] = None   # APPROVED | CHANGES_REQUESTED | REVIEW_REQUIRED
 
     class Config:
         from_attributes = True

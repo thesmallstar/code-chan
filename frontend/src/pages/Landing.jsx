@@ -28,11 +28,28 @@ function GitHubStatus({ status, username }) {
   )
 }
 
+const PR_STATE_BADGE = {
+  merged:  { label: 'merged',  cls: 'bg-purple-100 text-purple-700' },
+  closed:  { label: 'closed',  cls: 'bg-gray-100 text-gray-500' },
+  open:    { label: 'open',    cls: 'bg-green-100 text-green-700' },
+}
+
+const REVIEW_DECISION_BADGE = {
+  APPROVED:           { label: 'approved',          cls: 'bg-green-100 text-green-700' },
+  CHANGES_REQUESTED:  { label: 'changes requested', cls: 'bg-red-100 text-red-600' },
+  REVIEW_REQUIRED:    { label: 'review required',   cls: 'bg-yellow-100 text-yellow-700' },
+}
+
 function ReviewRow({ review, onClick }) {
   const pr = review.pull_request
   const date = review.created_at
     ? new Date(review.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
     : ''
+  const syncedAt = pr?.last_synced_at
+    ? new Date(pr.last_synced_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+    : null
+  const prStateBadge = pr?.pr_state ? PR_STATE_BADGE[pr.pr_state] : null
+  const decisionBadge = pr?.review_decision ? REVIEW_DECISION_BADGE[pr.review_decision] : null
 
   return (
     <button
@@ -41,20 +58,35 @@ function ReviewRow({ review, onClick }) {
     >
       <div className="flex items-center justify-between gap-3">
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-0.5">
+          <div className="flex items-center gap-2 mb-0.5 flex-wrap">
             {pr && (
               <span className="text-xs mono text-gray-400 shrink-0">
                 {pr.owner}/{pr.repo} #{pr.pr_number}
               </span>
             )}
             <StatusBadge status={review.status} />
+            {prStateBadge && (
+              <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${prStateBadge.cls}`}>
+                {prStateBadge.label}
+              </span>
+            )}
+            {decisionBadge && (
+              <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${decisionBadge.cls}`}>
+                {decisionBadge.label}
+              </span>
+            )}
           </div>
           <p className="text-sm font-medium text-gray-800 truncate">
             {pr?.title || '(untitled PR)'}
           </p>
-          {pr?.author && (
-            <p className="text-xs text-gray-400 mt-0.5">by {pr.author}</p>
-          )}
+          <div className="flex items-center gap-3 mt-0.5">
+            {pr?.author && (
+              <p className="text-xs text-gray-400">by {pr.author}</p>
+            )}
+            {syncedAt && (
+              <p className="text-xs text-gray-300">synced {syncedAt}</p>
+            )}
+          </div>
         </div>
         <div className="shrink-0 text-right">
           <p className="text-xs text-gray-400">{date}</p>

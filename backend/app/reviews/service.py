@@ -108,6 +108,11 @@ def _run_pipeline(db: Session, review_id: int) -> None:
     pr.head_sha = pr_data.get("head", {}).get("sha")
     pr.base_sha = pr_data.get("base", {}).get("sha")
     pr.last_synced_at = datetime.utcnow()
+    pr.pr_state = "merged" if pr_data.get("merged") else pr_data.get("state", "open")
+    try:
+        pr.review_decision = gh.get_pull_request_review_decision(pr.owner, pr.repo, pr.pr_number)
+    except Exception:
+        pr.review_decision = None
     db.commit()
 
     # ── 1b. Clone / update repo so AI can read files ───────────────────────
