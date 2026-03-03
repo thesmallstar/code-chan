@@ -68,6 +68,7 @@ POST /api/reviews
 ```
 PullRequest
   owner, repo, pr_number, title, body, author, head_sha, base_sha
+  pr_state, review_decision, last_synced_at
 
 ReviewInstance
   pull_request_id, status, summary_md, model_provider
@@ -77,17 +78,52 @@ ReviewChunk
   title, purpose, walkthrough, chunk_summary, review_order (JSON)
   file_paths (JSON), diff_content (JSON), line_map (JSON)
   status, ai_suggestions_md, ai_comments_json (JSON)
+  human_done                ← reviewer marked this chunk done
 
 ReviewThread          ← existing GitHub PR comments
   review_instance_id, github_id, type (REVIEW_COMMENT | ISSUE_COMMENT)
   author, body, path, line, diff_hunk, in_reply_to_id
+  position              ← null if comment is on outdated/stale diff
+  is_resolved           ← local resolve toggle (persisted in DB)
 
 ChatMessage           ← per-chunk chat with chan
   review_chunk_id, role (user | assistant), content
 
 DraftComment          ← inline comments ready to post to GitHub
-  review_chunk_id, path, line, side, body_md, status (DRAFT | SENT)
+  review_chunk_id, path, line, side, body_md, label, status (DRAFT | SENT)
+
+ReviewRequestCache    ← GitHub review-requested PRs (1hr TTL)
+  pr_url, title, repo_full_name, pr_number, author, updated_at
+  labels_json, last_synced_at
+
+ReReview              ← re-review job (one per trigger)
+  review_instance_id, status (PENDING | RUNNING | DONE | ERROR)
+  old_head_sha, new_head_sha
+  changes_summary_md, thread_opinions_json
 ```
+
+---
+
+## Re-review Pipeline
+
+When the user clicks "run re-review" inside the Re-review tab, a background task runs:
+
+```
+POST /api/reviews/{id}/re-review
+        │  stores ReReview(status=PENDING, old_head_sha=pr.head_sha)
+        ▼
+[RUNNING]
+  - fetch current PR head SHA from GitHub
+  - if old_sha != new_sha: GET /repos/{owner}/{repo}/compare/{old}...{new}
+    → list of changed files with patches
+  - fetch all open review comments + issue comments from GitHub
+  - ai.re_review(pr_data, diff_files, root_threads, issue_comments)
+    → {changes_summary: str, thread_opinions: [{github_id, should_resolve, reason}]}
+  - enrich opinions: match github_id → thread → attach author/body_preview/path/line
+  - store result, set status = DONE
+```
+
+Frontend polls `GET /api/re-reviews/{id}` every 3s while PENDING/RUNNING.
 
 ---
 
@@ -101,9 +137,11 @@ class AIProvider(ABC):
     def summarize_pr(pr_data, files, repo_path) -> str
     def review_chunk(title, file_diffs, line_map, repo_path) -> dict
     def chat(chunk_context, messages, repo_path) -> str
+    def re_review(pr_data, diff_files, root_threads, issue_comments) -> dict
 ```
 
 Currently implemented: `ClaudeProvider` (shells out to `claude -p`).
+`re_review()` uses `--output-format json --json-schema` for structured output.
 
 The `repo_path` parameter sets the working directory for the subprocess, giving claude access to read any file in the cloned repo. `CLAUDECODE` env var is stripped before each call to allow nested sessions.
 

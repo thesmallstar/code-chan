@@ -26,6 +26,8 @@ Paste a GitHub PR link → chan reads the whole diff, groups changes into logica
 - **Inline comments** — AI-suggested comments are anchored to real diff lines. Edit, delete, or post them directly to GitHub with one click.
 - **Chat per chunk** — ask chan anything about a specific set of changes. It has access to the full cloned repo.
 - **Thread discussion** — see existing PR comments with replies nested. Ask chan about any thread: "is this concern valid?", "how should I address this?"
+- **Re-review** — after you've pushed fixes, hit the Re-review tab: chan summarizes what changed since the last review and gives an opinion on each open thread (can resolve / needs a reply).
+- **Requested Reviews** — chan shows PRs where your review is requested. One click to start a review or re-review. PRs chan has already reviewed are badged with "chan reviewed · Xd ago".
 - **No API keys** — uses `claude` CLI (Claude Code) and `gh` CLI. Auth happens through the tools you already have.
 - **Fully local** — SQLite database, cloned repos stay on your machine, nothing leaves except GitHub API calls.
 
@@ -90,11 +92,18 @@ AI-suggested comments land in **chan's drafts**. You can:
 
 ### 4. Discuss threads
 
-Open the **Threads** tab to see existing PR comments with all replies. Hit **ask chan** on any thread to discuss it inline — chan has the diff hunk, file context, and full comment history.
+Open the **Threads** tab to see existing PR comments with all replies. Threads show colored diff hunks with an **outdated** badge when the code has changed since the comment. Hit **ask chan** on any thread, or **resolve** to mark it done locally.
 
-### 5. Re-run
+### 5. Re-review
 
-Hit **re-run chan** in the top bar to re-fetch the PR and re-run the full review (useful after new commits are pushed).
+After pushing fixes, open the **Re-review** tab inside the review page. Chan will:
+1. Compare the current head commit to when it last reviewed
+2. Summarize what changed
+3. Go through each open thread and give an opinion — "can resolve" or "respond first" with a reason
+
+### 6. Re-run
+
+Hit **re-run chan** in the top bar to re-fetch the PR and re-run the full review (useful when you want a fresh chunk analysis).
 
 ---
 
@@ -118,16 +127,17 @@ code-chan/
 │   └── app/
 │       ├── github/          # GitHub API client, diff parser, repo clone manager
 │       ├── ai/              # Claude Code CLI provider (+ codex stub for contributors)
-│       ├── reviews/         # LLM-based chunker, review pipeline service
-│       ├── routers/         # FastAPI route handlers
+│       ├── reviews/         # LLM-based chunker, review pipeline, re-review service
+│       ├── routers/         # FastAPI route handlers (reviews, chunks, threads, re-reviews, github)
 │       ├── models.py        # SQLAlchemy models
 │       ├── schemas.py       # Pydantic schemas (API contract)
 │       └── main.py
 ├── frontend/
 │   └── src/
-│       ├── pages/           # Landing, ReviewInstance
+│       ├── pages/           # Landing, ReviewInstance (with Re-review tab)
 │       └── components/      # DiffView, ChunkList, ChatPanel, DraftComments, ThreadsPanel
 ├── docs/                    # Architecture, setup, contributing guides
+├── knowledge-base/          # Decision log, implementation notes for AI agents
 ├── data/                    # SQLite DB (gitignored)
 ├── repos/                   # Cloned repos for AI context (gitignored)
 └── Makefile
