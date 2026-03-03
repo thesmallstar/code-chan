@@ -58,10 +58,13 @@
   - `ThreadsPanel.jsx` — `DiffHunk` (colored lines); `parseUtc`/`fmtDate` UTC fix; outdated pill when `position === null`; resolve button + optimistic toggle
   - `Landing.jsx` — `parseUtc`/`fmtDate`/`relativeDate` UTC helpers; "chan reviewed · Xd ago" badge on RequestRow; "re-review it" label; `handleStartReview` navigates to `/review/{id}` for existing reviews
 - **Alembic migration:** `94eacd111d09`
-- **Tests:** 38 passing (no new tests added for re-review)
+- **Tests:** 51 passing — 13 new tests across `test_threads.py` and `test_re_reviews.py`
+  - `test_threads.py` — resolve toggle: marks resolved, toggles back, 404 on missing
+  - `test_re_reviews.py` — create (returns id, captures old SHA, 404), get (pending, done with opinions, 404), cache deletion on review create (removes matching, leaves others), existing_review_id in review requests (present when review exists, null when not)
 - **Key UX decisions:**
   - Re-review is a tab inside ReviewInstance, NOT a separate page/route
-  - "re-review it" on Landing → `navigate('/review/{id}')`, then user clicks Re-review tab
+  - "chan reviewed · Xd ago" badge on ReviewRequestRow is a clickable link to the old review (overview tab)
+  - "re-review it" button navigates to `/review/{id}` with `{ state: { tab: 're-review' } }` so ReviewInstance auto-selects the Re-review tab on mount
   - Thread opinions sorted: "respond first" before "can resolve"
   - Old SHA stored at re-review creation time; compare API used to get diff; if same SHA → AI told "no new commits"
 
