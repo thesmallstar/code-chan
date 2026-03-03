@@ -115,9 +115,11 @@ class ReviewThreadResponse(BaseModel):
     body: Optional[str] = None
     path: Optional[str] = None
     line: Optional[int] = None
+    position: Optional[int] = None
     diff_hunk: Optional[str] = None
     created_at: Optional[datetime] = None
     in_reply_to_id: Optional[int] = None
+    is_resolved: bool = False
 
     class Config:
         from_attributes = True
@@ -195,11 +197,38 @@ class ReviewRequestItem(BaseModel):
     author: str
     updated_at: Optional[str] = None
     labels: list[str] = []
+    existing_review_id: Optional[int] = None
+    existing_review_status: Optional[str] = None
+    last_reviewed_at: Optional[str] = None
 
 
 class ReviewRequestsResponse(BaseModel):
     items: list[ReviewRequestItem]
     last_synced_at: Optional[datetime] = None
+
+
+# ── Re-Review ─────────────────────────────────────────────────────────────────
+
+class ThreadOpinion(BaseModel):
+    github_id: int
+    author: Optional[str] = None
+    body_preview: Optional[str] = None
+    path: Optional[str] = None
+    line: Optional[int] = None
+    should_resolve: bool
+    reason: Optional[str] = None
+
+
+class ReReviewResponse(BaseModel):
+    id: int
+    review_instance_id: int
+    status: str
+    old_head_sha: Optional[str] = None
+    new_head_sha: Optional[str] = None
+    changes_summary_md: Optional[str] = None
+    thread_opinions: list[ThreadOpinion] = []
+    error_message: Optional[str] = None
+    created_at: Optional[datetime] = None
 
 
 # ── Health ────────────────────────────────────────────────────────────────────

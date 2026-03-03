@@ -187,6 +187,11 @@ class CodexProvider(AIProvider):
         )
         return _run_codex(prompt)
 
+    def re_review(self, pr_data, diff_files, root_threads, issue_comments) -> dict:
+        # Delegate to the Claude provider implementation since it handles structured JSON well
+        from app.ai.claude import ClaudeProvider
+        return ClaudeProvider().re_review(pr_data, diff_files, root_threads, issue_comments)
+
 
 def _validate_and_anchor_comments(result: dict, line_map: dict) -> dict:
     comments = result.get("comments", [])

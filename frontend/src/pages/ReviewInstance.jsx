@@ -398,13 +398,185 @@ function ChunkPanel({ chunkSummary, totalChunks, draftTrigger, onDraftTrigger })
   )
 }
 
+// ── Re-review components ──────────────────────────────────────────────────────
+function ThreadOpinionCard({ op }) {
+  const resolve = op.should_resolve
+  return (
+    <div className="border border-gray-200 rounded-xl overflow-hidden mb-3 bg-white">
+      {op.path && (
+        <div className="px-3 py-1.5 bg-gray-50 border-b border-gray-100 flex items-center gap-2">
+          <span className="text-xs mono text-gray-500 truncate">
+            {op.path}{op.line ? `:${op.line}` : ''}
+          </span>
+          {op.author && <span className="text-xs text-gray-400 shrink-0">{op.author}</span>}
+        </div>
+      )}
+      <div className="px-3 py-3">
+        {op.body_preview && (
+          <p className="text-sm text-gray-700 mb-2 italic">"{op.body_preview}{op.body_preview?.length >= 120 ? '…' : ''}"</p>
+        )}
+        <div className="flex items-start gap-2">
+          <span className={`shrink-0 text-xs px-2 py-0.5 rounded-full font-medium ${
+            resolve ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'
+          }`}>
+            {resolve ? '✓ can resolve' : '↩ respond first'}
+          </span>
+          {op.reason && (
+            <p className="text-xs text-gray-500 leading-relaxed">{op.reason}</p>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+const REREVIEW_ACTIVE = ['PENDING', 'RUNNING']
+
+function ReReviewPanel({ reviewId }) {
+  const [reReviewId, setReReviewId] = useState(null)
+  const [rr, setRr] = useState(null)
+  const [starting, setStarting] = useState(false)
+  const [error, setError] = useState(null)
+
+  const loadRr = useCallback(() => {
+    if (!reReviewId) return
+    api.getReReview(reReviewId)
+      .then(setRr)
+      .catch((e) => setError(e.message))
+  }, [reReviewId])
+
+  useEffect(() => { if (reReviewId) loadRr() }, [reReviewId, loadRr])
+
+  useEffect(() => {
+    if (!rr || !REREVIEW_ACTIVE.includes(rr.status)) return
+    const t = setInterval(loadRr, 3000)
+    return () => clearInterval(t)
+  }, [rr, loadRr])
+
+  const startReReview = async () => {
+    setStarting(true)
+    setError(null)
+    try {
+      const { re_review_id } = await api.createReReview(reviewId)
+      setReReviewId(re_review_id)
+    } catch (e) {
+      setError(e.message)
+    } finally {
+      setStarting(false)
+    }
+  }
+
+  if (!reReviewId) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full gap-4 px-8 text-center">
+        <p className="text-sm text-gray-500">
+          Get a summary of what's changed since the last review and chan's opinion on open threads.
+        </p>
+        {error && <p className="text-xs text-red-500">{error}</p>}
+        <button
+          onClick={startReReview}
+          disabled={starting}
+          className="text-sm px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 disabled:opacity-50"
+        >
+          {starting ? 'starting…' : 'run re-review'}
+        </button>
+      </div>
+    )
+  }
+
+  const isActive = rr && REREVIEW_ACTIVE.includes(rr.status)
+  const noNewCommits = rr?.old_head_sha && rr?.new_head_sha && rr.old_head_sha === rr.new_head_sha
+
+  return (
+    <div className="h-full overflow-y-auto">
+      <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-3 flex items-center gap-3 z-10">
+        <h2 className="text-sm font-semibold text-gray-900">Re-review</h2>
+        {rr?.old_head_sha && rr?.new_head_sha && (
+          <span className="text-xs mono text-gray-400">
+            {noNewCommits
+              ? `at ${rr.old_head_sha.slice(0, 7)} (no new commits)`
+              : `${rr.old_head_sha.slice(0, 7)} → ${rr.new_head_sha.slice(0, 7)}`}
+          </span>
+        )}
+        {rr && (
+          <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+            rr.status === 'DONE' ? 'bg-green-100 text-green-700' :
+            rr.status === 'ERROR' ? 'bg-red-100 text-red-600' :
+            'bg-gray-100 text-gray-500'
+          }`}>
+            {rr.status === 'PENDING' ? 'queued' :
+             rr.status === 'RUNNING' ? 'analysing…' :
+             rr.status === 'DONE' ? 'done' : 'error'}
+          </span>
+        )}
+      </div>
+
+      <div className="px-6 py-6 max-w-3xl">
+        {isActive && (
+          <div className="flex items-center gap-3 py-10 justify-center">
+            <span className="w-2 h-2 rounded-full bg-purple-400 animate-pulse" />
+            <p className="text-sm text-gray-500">chan is analysing changes and reviewing threads…</p>
+          </div>
+        )}
+
+        {rr?.status === 'ERROR' && (
+          <div className="p-4 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
+            {rr.error_message || 'Something went wrong.'}
+          </div>
+        )}
+
+        {rr?.status === 'DONE' && (
+          <>
+            <section className="mb-8">
+              <h3 className="text-sm font-semibold text-gray-900 mb-3">
+                {noNewCommits ? 'No new commits' : 'Changes since last review'}
+              </h3>
+              {rr.changes_summary_md ? (
+                <div className="prose prose-sm text-gray-700 max-w-none">
+                  <ReactMarkdown>{rr.changes_summary_md}</ReactMarkdown>
+                </div>
+              ) : (
+                <p className="text-sm text-gray-400 italic">No summary generated.</p>
+              )}
+            </section>
+
+            <section>
+              <h3 className="text-sm font-semibold text-gray-900 mb-3">
+                Open Threads
+                {rr.thread_opinions.length > 0 && (
+                  <span className="ml-2 text-sm font-normal text-gray-400">
+                    ({rr.thread_opinions.filter(o => !o.should_resolve).length} need response ·{' '}
+                    {rr.thread_opinions.filter(o => o.should_resolve).length} can resolve)
+                  </span>
+                )}
+              </h3>
+              {rr.thread_opinions.length === 0 ? (
+                <p className="text-sm text-gray-400 italic">No open threads.</p>
+              ) : (
+                <>
+                  {rr.thread_opinions.filter(o => !o.should_resolve).map((op, i) => (
+                    <ThreadOpinionCard key={i} op={op} />
+                  ))}
+                  {rr.thread_opinions.filter(o => o.should_resolve).map((op, i) => (
+                    <ThreadOpinionCard key={i} op={op} />
+                  ))}
+                </>
+              )}
+            </section>
+          </>
+        )}
+      </div>
+    </div>
+  )
+}
+
 // ── Main page ─────────────────────────────────────────────────────────────────
 export default function ReviewInstance() {
   const { id } = useParams()
   const navigate = useNavigate()
   const [review, setReview] = useState(null)
   const [threads, setThreads] = useState([])
-  const [tab, setTab] = useState('overview')   // 'overview' | 'chunk' | 'threads'
+  const [tab, setTab] = useState('overview')   // 'overview' | 'chunk' | 'threads' | 're-review'
   const [selectedChunk, setSelectedChunk] = useState(null)
   const [draftTrigger, setDraftTrigger] = useState(0)
   const [error, setError] = useState(null)
@@ -583,6 +755,16 @@ export default function ReviewInstance() {
               )}
             </button>
             <button
+              onClick={() => setTab('re-review')}
+              className={`w-full text-left px-3 py-2 rounded-md text-sm transition-colors mt-0.5
+                ${tab === 're-review'
+                  ? 'bg-gray-900 text-white'
+                  : 'hover:bg-gray-100 text-gray-700'
+                }`}
+            >
+              Re-review
+            </button>
+            <button
               onClick={() => setTab('overview')}
               className={`w-full text-left px-3 py-2 rounded-md text-sm transition-colors mt-0.5
                 ${tab === 'overview'
@@ -607,6 +789,7 @@ export default function ReviewInstance() {
                 onRefresh={loadThreads}
               />
             )}
+            {tab === 're-review' && <ReReviewPanel reviewId={id} />}
             {tab === 'chunk' && (
               <ChunkPanel
                 chunkSummary={selectedChunk}

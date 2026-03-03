@@ -174,6 +174,9 @@ class GitHubClient:
         data = self._get("/search/issues", params={"q": query, "sort": "updated", "order": "desc", "per_page": 50})
         return data.get("items", [])
 
+    def get_commit_compare(self, owner: str, repo: str, base: str, head: str) -> dict:
+        return self._get(f"/repos/{owner}/{repo}/compare/{base}...{head}")
+
     def submit_pull_request_review(
         self,
         owner: str,

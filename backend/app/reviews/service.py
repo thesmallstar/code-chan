@@ -134,6 +134,7 @@ def _run_pipeline(db: Session, review_id: int) -> None:
             body=c.get("body", ""),
             path=c.get("path"),
             line=c.get("line") or c.get("original_line"),
+            position=c.get("position"),   # None = comment is on outdated diff
             diff_hunk=c.get("diff_hunk"),
             created_at=_parse_dt(c.get("created_at")),
             in_reply_to_id=c.get("in_reply_to_id"),
