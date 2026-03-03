@@ -18,7 +18,11 @@ function saveLastSync() {
 
 function formatLastSync(ts) {
   if (!ts) return null
-  const ms = Date.now() - new Date(ts).getTime()
+  // ts comes from the server as a naive UTC datetime string (no Z suffix).
+  // Appending 'Z' tells the browser to parse it as UTC so local time is correct.
+  const raw = ts.endsWith('Z') || ts.includes('+') ? ts : ts + 'Z'
+  const ms = Date.now() - new Date(raw).getTime()
+  if (ms < 0) return 'just now'
   const mins = Math.floor(ms / 60000)
   if (mins < 1) return 'just now'
   if (mins < 60) return `${mins}m ago`
