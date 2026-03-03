@@ -20,6 +20,7 @@ export const api = {
 
   // GitHub
   verifyGitHub: () => req('POST', '/api/github/verify'),
+  getReviewRequests: (days = 14) => req('GET', `/api/github/review-requests?days=${days}`),
 
   // Reviews
   listReviews: () => req('GET', '/api/reviews'),
