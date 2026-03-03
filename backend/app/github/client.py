@@ -166,12 +166,11 @@ class GitHubClient:
 
     def get_review_requests(self, days: int = 0) -> list[dict]:
         """Return open PRs where the authenticated user has been requested to review."""
-        date_filter = ""
+        query = "is:pr is:open review-requested:@me"
         if days > 0:
             from datetime import datetime, timedelta, timezone
             since = (datetime.now(timezone.utc) - timedelta(days=days)).strftime("%Y-%m-%d")
-            date_filter = f"+updated:>{since}"
-        query = f"is:pr+is:open+review-requested:@me{date_filter}"
+            query += f" updated:>{since}"
         data = self._get("/search/issues", params={"q": query, "sort": "updated", "order": "desc", "per_page": 50})
         return data.get("items", [])
 
