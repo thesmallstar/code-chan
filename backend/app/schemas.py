@@ -185,6 +185,18 @@ class SubmitReviewResponse(BaseModel):
     html_url: Optional[str] = None
 
 
+# ── Review Requests ───────────────────────────────────────────────────────────
+
+class ReviewRequestItem(BaseModel):
+    pr_url: str
+    title: str
+    repo_full_name: str
+    pr_number: int
+    author: str
+    updated_at: Optional[str] = None
+    labels: list[str] = []
+
+
 # ── Health ────────────────────────────────────────────────────────────────────
 
 class HealthResponse(BaseModel):

@@ -99,6 +99,44 @@ function ReviewRow({ review, onClick }) {
   )
 }
 
+const DAY_OPTIONS = [
+  { label: '7d',  value: 7  },
+  { label: '14d', value: 14 },
+  { label: '30d', value: 30 },
+  { label: 'all', value: 0  },
+]
+
+function ReviewRequestRow({ item, onStart, starting }) {
+  const updated = item.updated_at
+    ? new Date(item.updated_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+    : ''
+
+  return (
+    <div className="px-4 py-3 border-b border-gray-100 last:border-0 flex items-center justify-between gap-3">
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2 mb-0.5 flex-wrap">
+          <span className="text-xs mono text-gray-400 shrink-0">
+            {item.repo_full_name} #{item.pr_number}
+          </span>
+          {item.labels.map((l) => (
+            <span key={l} className="text-xs px-1.5 py-0.5 bg-gray-100 text-gray-500 rounded-full">{l}</span>
+          ))}
+        </div>
+        <p className="text-sm font-medium text-gray-800 truncate">{item.title}</p>
+        <p className="text-xs text-gray-400 mt-0.5">by {item.author} · updated {updated}</p>
+      </div>
+      <button
+        onClick={() => onStart(item.pr_url)}
+        disabled={starting === item.pr_url}
+        className="shrink-0 text-xs px-3 py-1.5 bg-gray-900 text-white rounded-md hover:bg-gray-800
+          disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+      >
+        {starting === item.pr_url ? 'starting…' : 'let chan review it'}
+      </button>
+    </div>
+  )
+}
+
 export default function Landing() {
   const navigate = useNavigate()
   const [ghStatus, setGhStatus] = useState({ state: 'checking', username: null })
@@ -106,6 +144,10 @@ export default function Landing() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
   const [reviews, setReviews] = useState([])
+  const [reviewRequests, setReviewRequests] = useState([])
+  const [requestDays, setRequestDays] = useState(14)
+  const [requestsLoading, setRequestsLoading] = useState(false)
+  const [startingUrl, setStartingUrl] = useState(null)
 
   const checkGitHub = () => {
     setGhStatus({ state: 'checking', username: null })
@@ -121,10 +163,34 @@ export default function Landing() {
     api.listReviews().then(setReviews).catch(() => {})
   }
 
+  const loadReviewRequests = (days) => {
+    setRequestsLoading(true)
+    api.getReviewRequests(days)
+      .then(setReviewRequests)
+      .catch(() => setReviewRequests([]))
+      .finally(() => setRequestsLoading(false))
+  }
+
   useEffect(() => {
     checkGitHub()
     loadReviews()
+    loadReviewRequests(requestDays)
   }, [])
+
+  const handleDaysChange = (days) => {
+    setRequestDays(days)
+    loadReviewRequests(days)
+  }
+
+  const handleStartReview = async (url) => {
+    setStartingUrl(url)
+    try {
+      const { review_id } = await api.createReview(url, 'claude')
+      navigate(`/review/${review_id}`)
+    } catch {
+      setStartingUrl(null)
+    }
+  }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -214,9 +280,49 @@ export default function Landing() {
           </form>
         </div>
 
-        {/* Right: recent reviews */}
+        {/* Right: review requests + recent reviews */}
         <div className="flex-1 overflow-y-auto">
-          <div className="px-8 py-12">
+          {/* ── Review requests ── */}
+          <div className="px-8 pt-10 pb-6 border-b border-gray-100">
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-lg font-semibold text-gray-900">Requested Reviews</h2>
+              <div className="flex items-center gap-1">
+                {DAY_OPTIONS.map(({ label, value }) => (
+                  <button
+                    key={value}
+                    onClick={() => handleDaysChange(value)}
+                    className={`text-xs px-2.5 py-1 rounded-md border transition-colors
+                      ${requestDays === value
+                        ? 'bg-gray-900 text-white border-gray-900'
+                        : 'border-gray-200 text-gray-500 hover:bg-gray-50'
+                      }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {requestsLoading ? (
+              <p className="text-sm text-gray-400 animate-pulse py-4">fetching review requests…</p>
+            ) : reviewRequests.length === 0 ? (
+              <p className="text-sm text-gray-400 py-4">no pending review requests found.</p>
+            ) : (
+              <div className="border border-gray-200 rounded-lg overflow-hidden">
+                {reviewRequests.map((item) => (
+                  <ReviewRequestRow
+                    key={`${item.repo_full_name}-${item.pr_number}`}
+                    item={item}
+                    onStart={handleStartReview}
+                    starting={startingUrl}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* ── Recent reviews ── */}
+          <div className="px-8 py-8">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold text-gray-900">Recent Reviews</h2>
               <button
@@ -228,7 +334,7 @@ export default function Landing() {
             </div>
 
             {reviews.length === 0 ? (
-              <div className="text-center py-16 text-gray-400">
+              <div className="text-center py-10 text-gray-400">
                 <p className="text-sm">chan hasn't reviewed anything yet.</p>
                 <p className="text-xs mt-1">drop a PR link on the left to get started.</p>
               </div>
