@@ -96,8 +96,9 @@ function TopBar({ review, onSync, navigate }) {
     <header className="border-b border-gray-200 bg-white px-4 py-2.5 flex items-center gap-4 shrink-0">
       <button
         onClick={() => navigate('/')}
-        className="text-sm text-gray-400 hover:text-gray-600 mono"
+        className="text-sm text-gray-400 hover:text-gray-600 mono flex items-center gap-2"
       >
+        <img src="/logo.png" alt="chan" className="w-6 h-6" />
         ← code-chan
       </button>
       <div className="flex-1 min-w-0">

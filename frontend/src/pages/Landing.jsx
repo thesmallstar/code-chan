@@ -307,7 +307,10 @@ export default function Landing() {
       <div className="flex-1 flex">
         {/* Left: new review form */}
         <div className="w-full max-w-md px-10 py-12 border-r border-gray-100 shrink-0">
-          <h1 className="text-2xl font-semibold text-gray-900 mb-1">hey, I'm chan 👋</h1>
+          <div className="flex items-center gap-3 mb-2">
+            <img src="/logo.png" alt="chan" className="w-10 h-10" />
+            <h1 className="text-2xl font-semibold text-gray-900">hey, I'm chan 👋</h1>
+          </div>
           <p className="text-gray-500 mb-8 text-sm leading-relaxed">
             drop a PR link and I'll read through it, group the changes, and leave you
             inline comments to discuss and post to GitHub.
