@@ -144,6 +144,7 @@ const DAY_OPTIONS = [
 ]
 
 function ReviewRequestRow({ item, onStart, starting }) {
+  const navigate = useNavigate()
   const updated = item.updated_at
     ? parseUtc(item.updated_at)?.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
     : ''
@@ -161,9 +162,12 @@ function ReviewRequestRow({ item, onStart, starting }) {
             <span key={l} className="text-xs px-1.5 py-0.5 bg-gray-100 text-gray-500 rounded-full">{l}</span>
           ))}
           {hasReview && (
-            <span className="text-xs px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded-full">
-              chan reviewed · {relativeDate(item.last_reviewed_at)}
-            </span>
+            <button
+              onClick={() => navigate(`/review/${item.existing_review_id}`)}
+              className="text-xs px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded-full hover:bg-blue-100 transition-colors"
+            >
+              chan reviewed · {relativeDate(item.last_reviewed_at)} ↗
+            </button>
           )}
         </div>
         <p className="text-sm font-medium text-gray-800 truncate">{item.title}</p>
@@ -254,7 +258,7 @@ export default function Landing() {
 
   const handleStartReview = async (item) => {
     if (item.existing_review_id) {
-      navigate(`/review/${item.existing_review_id}`)
+      navigate(`/review/${item.existing_review_id}`, { state: { tab: 're-review' } })
       return
     }
     setStartingUrl(item.pr_url)

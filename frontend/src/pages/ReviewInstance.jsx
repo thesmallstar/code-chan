@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import ReactMarkdown from 'react-markdown'
 import { api } from '../lib/api'
 import { COMMENT_LABELS, labelClasses } from '../lib/labels'
@@ -574,9 +574,10 @@ function ReReviewPanel({ reviewId }) {
 export default function ReviewInstance() {
   const { id } = useParams()
   const navigate = useNavigate()
+  const location = useLocation()
   const [review, setReview] = useState(null)
   const [threads, setThreads] = useState([])
-  const [tab, setTab] = useState('overview')   // 'overview' | 'chunk' | 'threads' | 're-review'
+  const [tab, setTab] = useState(location.state?.tab || 'overview')   // 'overview' | 'chunk' | 'threads' | 're-review'
   const [selectedChunk, setSelectedChunk] = useState(null)
   const [draftTrigger, setDraftTrigger] = useState(0)
   const [error, setError] = useState(null)
