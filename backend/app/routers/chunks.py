@@ -153,6 +153,12 @@ def send_chat(chunk_id: int, body: ChatMessageCreate, db: Session = Depends(get_
     return assistant_msg
 
 
+def _body_with_label(body_md: str, label: str | None) -> str:
+    if label:
+        return f"**[{label}]** {body_md}"
+    return body_md
+
+
 # ── Draft Comments ────────────────────────────────────────────────────────────
 
 @router.get("/{chunk_id}/drafts", response_model=list[DraftCommentResponse])
@@ -192,6 +198,7 @@ def create_draft(chunk_id: int, body: DraftCommentCreate, db: Session = Depends(
         start_line=body.start_line,
         start_side=body.start_side,
         body_md=body.body_md,
+        label=body.label,
     )
     db.add(draft)
     db.commit()
@@ -210,6 +217,8 @@ def update_draft(draft_id: int, body: DraftCommentUpdate, db: Session = Depends(
         draft.path = body.path
     if body.line is not None:
         draft.line = body.line
+    if body.label is not None:
+        draft.label = body.label
     db.commit()
     db.refresh(draft)
     return draft
@@ -250,7 +259,7 @@ def send_draft(draft_id: int, db: Session = Depends(get_db)):
             commit_id=pr.head_sha,
             path=draft.path,
             line=draft.line,
-            body=draft.body_md,
+            body=_body_with_label(draft.body_md, draft.label),
             side=draft.side or "RIGHT",
             start_line=draft.start_line,
             start_side=draft.start_side,

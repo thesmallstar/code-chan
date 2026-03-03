@@ -142,12 +142,14 @@ class DraftCommentCreate(BaseModel):
     start_line: Optional[int] = None
     start_side: Optional[str] = None
     body_md: str
+    label: Optional[str] = None
 
 
 class DraftCommentUpdate(BaseModel):
     body_md: Optional[str] = None
     path: Optional[str] = None
     line: Optional[int] = None
+    label: Optional[str] = None
 
 
 class DraftCommentResponse(BaseModel):
@@ -158,12 +160,26 @@ class DraftCommentResponse(BaseModel):
     start_line: Optional[int] = None
     start_side: Optional[str] = None
     body_md: Optional[str] = None
+    label: Optional[str] = None
     status: str
     github_comment_id: Optional[int] = None
     created_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True
+
+
+# ── PR Review Submission ───────────────────────────────────────────────────────
+
+class SubmitReviewRequest(BaseModel):
+    event: str   # APPROVE | REQUEST_CHANGES | COMMENT
+    body: str = ""
+
+
+class SubmitReviewResponse(BaseModel):
+    github_review_id: int
+    state: str
+    html_url: Optional[str] = None
 
 
 # ── Health ────────────────────────────────────────────────────────────────────

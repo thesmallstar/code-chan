@@ -11,6 +11,8 @@ from app.schemas import (
     ReviewCreate,
     ReviewInstanceResponse,
     ReviewThreadResponse,
+    SubmitReviewRequest,
+    SubmitReviewResponse,
 )
 
 router = APIRouter(prefix="/api/reviews", tags=["reviews"])
@@ -126,6 +128,48 @@ def sync_review(review_id: int, background_tasks: BackgroundTasks, db: Session =
     db.commit()
     background_tasks.add_task(process_review, review_id)
     return {"status": "sync started"}
+
+
+@router.post("/{review_id}/submit", response_model=SubmitReviewResponse)
+def submit_review(review_id: int, body: SubmitReviewRequest, db: Session = Depends(get_db)):
+    if body.event not in {"APPROVE", "REQUEST_CHANGES", "COMMENT"}:
+        raise HTTPException(status_code=422, detail="event must be APPROVE, REQUEST_CHANGES, or COMMENT")
+    if body.event == "REQUEST_CHANGES" and not body.body.strip():
+        raise HTTPException(status_code=422, detail="body is required when requesting changes")
+
+    review = db.get(ReviewInstance, review_id)
+    if not review:
+        raise HTTPException(status_code=404, detail="Review not found")
+
+    pr = db.get(PullRequest, review.pull_request_id)
+    if not pr:
+        raise HTTPException(status_code=404, detail="Pull request not found")
+    if not pr.head_sha:
+        raise HTTPException(status_code=400, detail="PR head SHA not available — re-sync first")
+
+    from app.github.client import GitHubClient, get_github_token
+    token = get_github_token()
+    if not token:
+        raise HTTPException(status_code=400, detail="GitHub token not available")
+
+    gh = GitHubClient(token)
+    try:
+        result = gh.submit_pull_request_review(
+            owner=pr.owner,
+            repo=pr.repo,
+            pr_number=pr.pr_number,
+            commit_id=pr.head_sha,
+            event=body.event,
+            body=body.body,
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to submit review: {e}")
+
+    return SubmitReviewResponse(
+        github_review_id=result["id"],
+        state=result.get("state", body.event),
+        html_url=result.get("html_url"),
+    )
 
 
 @router.get("/{review_id}/threads", response_model=list[ReviewThreadResponse])
