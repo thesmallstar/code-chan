@@ -20,12 +20,33 @@ function groupThreads(threads) {
   return roots.map((r) => ({ root: r, replies: replyMap[r.github_id] || [] }))
 }
 
+function parseUtc(s) {
+  if (!s) return null
+  return new Date(s.endsWith('Z') || s.includes('+') ? s : s + 'Z')
+}
+
+function fmtDate(s) {
+  const d = parseUtc(s)
+  return d ? d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : ''
+}
+
+function DiffHunk({ hunk }) {
+  if (!hunk) return null
+  return (
+    <div className="border-b border-gray-100 overflow-x-auto max-h-28 text-xs mono">
+      {hunk.split('\n').map((line, i) => {
+        let cls = 'px-3 py-0 text-gray-600 bg-white'
+        if (line.startsWith('@@')) cls = 'px-3 py-0 text-blue-500 bg-blue-50'
+        else if (line.startsWith('+')) cls = 'px-3 py-0 text-green-800 bg-green-50'
+        else if (line.startsWith('-')) cls = 'px-3 py-0 text-red-800 bg-red-50'
+        return <div key={i} className={cls}>{line || ' '}</div>
+      })}
+    </div>
+  )
+}
+
 function Comment({ comment, isReply }) {
-  const date = comment.created_at
-    ? new Date(comment.created_at).toLocaleDateString('en-US', {
-        month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
-      })
-    : ''
+  const date = fmtDate(comment.created_at)
   return (
     <div className={`${isReply ? 'ml-6 border-l-2 border-gray-100 pl-3' : ''}`}>
       <div className="flex items-center gap-2 mb-1">
@@ -62,6 +83,8 @@ function ThreadCard({ group, onPostReply }) {
   const [replyOpen, setReplyOpen] = useState(false)
   const [replyText, setReplyText] = useState('')
   const [postingSending, setPostingSending] = useState(false)
+  const [resolved, setResolved] = useState(root.is_resolved || false)
+  const [resolving, setResolving] = useState(false)
 
   // Chan discussion state (ephemeral — lives in component memory)
   const [chanOpen, setChanOpen] = useState(false)
@@ -99,6 +122,16 @@ function ThreadCard({ group, onPostReply }) {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); askChan() }
   }
 
+  const toggleResolve = async () => {
+    setResolving(true)
+    try {
+      const { is_resolved } = await api.resolveThread(root.id)
+      setResolved(is_resolved)
+    } finally {
+      setResolving(false)
+    }
+  }
+
   const postReply = async () => {
     if (!replyText.trim()) return
     setPostingSending(true)
@@ -111,26 +144,28 @@ function ThreadCard({ group, onPostReply }) {
     }
   }
 
+  const isOutdated = isInline && root.position === null
+
   return (
-    <div className="border border-gray-200 rounded-xl mb-3 overflow-hidden bg-white">
+    <div className={`border rounded-xl mb-3 overflow-hidden ${resolved ? 'border-green-200 bg-green-50/30 opacity-70' : 'border-gray-200 bg-white'}`}>
       {/* File + line header */}
       {isInline && root.path && (
         <div className="px-3 py-1.5 bg-gray-50 border-b border-gray-100 flex items-center gap-2">
           <span className="text-xs mono text-gray-500 truncate">
             {root.path}{root.line ? `:${root.line}` : ''}
           </span>
-          <span className="text-xs text-gray-400 uppercase tracking-wide shrink-0">
-            {root.type === 'REVIEW_COMMENT' ? 'inline' : 'pr comment'}
-          </span>
+          <span className="text-xs text-gray-400 uppercase tracking-wide shrink-0">inline</span>
+          {isOutdated && (
+            <span className="text-xs px-1.5 py-0.5 bg-gray-200 text-gray-500 rounded-full shrink-0">outdated</span>
+          )}
+          {resolved && (
+            <span className="text-xs px-1.5 py-0.5 bg-green-100 text-green-700 rounded-full shrink-0 ml-auto">✓ resolved</span>
+          )}
         </div>
       )}
 
-      {/* Diff hunk */}
-      {root.diff_hunk && (
-        <pre className="px-3 py-2 text-xs bg-gray-50 border-b border-gray-100 overflow-x-auto mono text-gray-600 max-h-28">
-          {root.diff_hunk}
-        </pre>
-      )}
+      {/* Colored diff hunk */}
+      <DiffHunk hunk={root.diff_hunk} />
 
       {/* Root comment + replies */}
       <div className="px-3 py-3 space-y-3">
@@ -141,7 +176,7 @@ function ThreadCard({ group, onPostReply }) {
       </div>
 
       {/* Actions */}
-      <div className="px-3 pb-3 flex items-center gap-2">
+      <div className="px-3 pb-3 flex items-center gap-2 flex-wrap">
         <button
           onClick={() => { setChanOpen(!chanOpen); if (!chanOpen && chanHistory.length === 0) setChanHistory([]) }}
           className={`text-xs px-2.5 py-1 rounded-md border transition-colors
@@ -154,6 +189,16 @@ function ThreadCard({ group, onPostReply }) {
           className="text-xs px-2.5 py-1 rounded-md border border-gray-200 text-gray-500 hover:border-gray-400 hover:text-gray-700 transition-colors"
         >
           reply on GitHub
+        </button>
+        <button
+          onClick={toggleResolve}
+          disabled={resolving}
+          className={`text-xs px-2.5 py-1 rounded-md border transition-colors ml-auto disabled:opacity-50
+            ${resolved
+              ? 'bg-green-50 border-green-300 text-green-700 hover:bg-white'
+              : 'border-gray-200 text-gray-500 hover:border-green-400 hover:text-green-700'}`}
+        >
+          {resolved ? '✓ resolved' : 'resolve'}
         </button>
       </div>
 

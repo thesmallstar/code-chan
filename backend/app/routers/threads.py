@@ -8,6 +8,16 @@ from app.schemas import ReviewThreadResponse, ThreadDiscussCreate, ThreadDiscuss
 router = APIRouter(prefix="/api/threads", tags=["threads"])
 
 
+@router.patch("/{thread_id}/resolve")
+def resolve_thread(thread_id: int, db: Session = Depends(get_db)):
+    thread = db.get(ReviewThread, thread_id)
+    if not thread:
+        raise HTTPException(status_code=404, detail="Thread not found")
+    thread.is_resolved = not thread.is_resolved
+    db.commit()
+    return {"is_resolved": thread.is_resolved}
+
+
 @router.post("/{thread_id}/reply")
 def reply_to_thread(thread_id: int, body: ThreadReplyCreate, db: Session = Depends(get_db)):
     thread = db.get(ReviewThread, thread_id)

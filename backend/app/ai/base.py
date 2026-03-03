@@ -80,3 +80,22 @@ class AIProvider(ABC):
         `messages` is a list of {"role": "user"|"assistant", "content": str}.
         Returns the assistant's reply as a string.
         """
+
+    @abstractmethod
+    def re_review(
+        self,
+        pr_data: dict,
+        diff_files: list[dict],
+        root_threads: list[dict],
+        issue_comments: list[dict],
+    ) -> dict:
+        """
+        Analyse what changed since the last review and evaluate open threads.
+        Returns:
+            {
+                "changes_summary": str (markdown),
+                "thread_opinions": [
+                    {"github_id": int, "should_resolve": bool, "reason": str}
+                ]
+            }
+        """

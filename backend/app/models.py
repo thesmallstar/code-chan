@@ -92,9 +92,11 @@ class ReviewThread(Base):
     body = Column(Text)
     path = Column(String, nullable=True)
     line = Column(Integer, nullable=True)
+    position = Column(Integer, nullable=True)   # null = comment is on outdated diff
     diff_hunk = Column(Text, nullable=True)
     created_at = Column(DateTime)
     in_reply_to_id = Column(Integer, nullable=True)
+    is_resolved = Column(Boolean, default=False)
 
 
 class ChatMessage(Base):
@@ -104,6 +106,20 @@ class ChatMessage(Base):
     review_chunk_id = Column(Integer, ForeignKey("review_chunks.id"), nullable=False)
     role = Column(String)   # user | assistant
     content = Column(Text)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class ReReview(Base):
+    __tablename__ = "re_reviews"
+
+    id = Column(Integer, primary_key=True, index=True)
+    review_instance_id = Column(Integer, ForeignKey("review_instances.id"), nullable=False)
+    status = Column(String, default="PENDING")   # PENDING | RUNNING | DONE | ERROR
+    old_head_sha = Column(String)
+    new_head_sha = Column(String)
+    changes_summary_md = Column(Text)
+    thread_opinions_json = Column(Text, default="[]")
+    error_message = Column(Text)
     created_at = Column(DateTime, default=datetime.utcnow)
 
 

@@ -49,4 +49,9 @@ export const api = {
     req('POST', `/api/threads/${threadId}/reply`, { body_md: bodyMd }),
   discussThread: (threadId, message, history = []) =>
     req('POST', `/api/threads/${threadId}/discuss`, { message, history }),
+  resolveThread: (threadId) => req('PATCH', `/api/threads/${threadId}/resolve`),
+
+  // Re-review
+  createReReview: (reviewId) => req('POST', `/api/reviews/${reviewId}/re-review`),
+  getReReview: (id) => req('GET', `/api/re-reviews/${id}`),
 }

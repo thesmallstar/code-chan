@@ -16,17 +16,31 @@ function saveLastSync() {
   localStorage.setItem(SYNC_CACHE_KEY, String(Date.now()))
 }
 
-function formatLastSync(ts) {
-  if (!ts) return null
-  // ts comes from the server as a naive UTC datetime string (no Z suffix).
-  // Appending 'Z' tells the browser to parse it as UTC so local time is correct.
-  const raw = ts.endsWith('Z') || ts.includes('+') ? ts : ts + 'Z'
-  const ms = Date.now() - new Date(raw).getTime()
-  if (ms < 0) return 'just now'
+// Server returns naive UTC datetimes without Z — append it so browsers parse correctly
+function parseUtc(s) {
+  if (!s) return null
+  return new Date(s.endsWith('Z') || s.includes('+') ? s : s + 'Z')
+}
+
+function fmtDate(s) {
+  const d = parseUtc(s)
+  return d ? d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : ''
+}
+
+function relativeDate(s) {
+  const d = parseUtc(s)
+  if (!d) return ''
+  const ms = Date.now() - d.getTime()
   const mins = Math.floor(ms / 60000)
   if (mins < 1) return 'just now'
   if (mins < 60) return `${mins}m ago`
-  return `${Math.floor(mins / 60)}h ago`
+  const hrs = Math.floor(mins / 60)
+  if (hrs < 24) return `${hrs}h ago`
+  return `${Math.floor(hrs / 24)}d ago`
+}
+
+function formatLastSync(ts) {
+  return relativeDate(ts)
 }
 
 function GitHubStatus({ status, username }) {
@@ -68,14 +82,11 @@ const REVIEW_DECISION_BADGE = {
 
 function ReviewRow({ review, onClick }) {
   const pr = review.pull_request
-  const date = review.created_at
-    ? new Date(review.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
-    : ''
-  const syncedAt = pr?.last_synced_at
-    ? new Date(pr.last_synced_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
-    : null
+  const date = fmtDate(review.created_at)
+  const syncedAt = pr?.last_synced_at ? fmtDate(pr.last_synced_at) : null
   const prStateBadge = pr?.pr_state ? PR_STATE_BADGE[pr.pr_state] : null
-  const decisionBadge = pr?.review_decision ? REVIEW_DECISION_BADGE[pr.review_decision] : null
+  const allDone = review.chunks?.length > 0 && review.chunks.every(c => c.human_done)
+  const decisionBadge = (!allDone && pr?.review_decision) ? REVIEW_DECISION_BADGE[pr.review_decision] : null
 
   return (
     <button
@@ -134,8 +145,10 @@ const DAY_OPTIONS = [
 
 function ReviewRequestRow({ item, onStart, starting }) {
   const updated = item.updated_at
-    ? new Date(item.updated_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+    ? parseUtc(item.updated_at)?.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
     : ''
+  const hasReview = !!item.existing_review_id
+  const isStarting = starting === item.pr_url
 
   return (
     <div className="px-4 py-3 border-b border-gray-100 last:border-0 flex items-center justify-between gap-3">
@@ -147,17 +160,22 @@ function ReviewRequestRow({ item, onStart, starting }) {
           {item.labels.map((l) => (
             <span key={l} className="text-xs px-1.5 py-0.5 bg-gray-100 text-gray-500 rounded-full">{l}</span>
           ))}
+          {hasReview && (
+            <span className="text-xs px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded-full">
+              chan reviewed · {relativeDate(item.last_reviewed_at)}
+            </span>
+          )}
         </div>
         <p className="text-sm font-medium text-gray-800 truncate">{item.title}</p>
         <p className="text-xs text-gray-400 mt-0.5">by {item.author} · updated {updated}</p>
       </div>
       <button
-        onClick={() => onStart(item.pr_url)}
-        disabled={starting === item.pr_url}
+        onClick={() => onStart(item)}
+        disabled={isStarting}
         className="shrink-0 text-xs px-3 py-1.5 bg-gray-900 text-white rounded-md hover:bg-gray-800
           disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
       >
-        {starting === item.pr_url ? 'starting…' : 'let chan review it'}
+        {isStarting ? 'starting…' : hasReview ? 're-review it' : 'let chan review it'}
       </button>
     </div>
   )
@@ -234,12 +252,16 @@ export default function Landing() {
     syncReviewRequests(requestDays)
   }
 
-  const handleStartReview = async (url) => {
-    setStartingUrl(url)
+  const handleStartReview = async (item) => {
+    if (item.existing_review_id) {
+      navigate(`/review/${item.existing_review_id}`)
+      return
+    }
+    setStartingUrl(item.pr_url)
     try {
-      const { review_id } = await api.createReview(url, 'claude')
+      const { review_id } = await api.createReview(item.pr_url, 'claude')
       const newReview = await api.getReview(review_id)
-      setReviewRequests((prev) => prev.filter((r) => r.pr_url !== url))
+      setReviewRequests((prev) => prev.filter((r) => r.pr_url !== item.pr_url))
       setReviews((prev) => [...prev, newReview])
     } catch {
       // leave the item in place on error

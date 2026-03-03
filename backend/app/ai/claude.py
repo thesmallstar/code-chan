@@ -125,6 +125,26 @@ You are a code review assistant helping a developer refine their review comments
 You have access to the repository files — read them if needed for better context.
 Help the user craft clear, specific, and constructive review comments. Be direct and concise."""
 
+_RE_REVIEW_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "changes_summary": {"type": "string"},
+        "thread_opinions": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "github_id": {"type": "integer"},
+                    "should_resolve": {"type": "boolean"},
+                    "reason": {"type": "string"},
+                },
+                "required": ["github_id", "should_resolve", "reason"],
+            },
+        },
+    },
+    "required": ["changes_summary", "thread_opinions"],
+}
+
 
 def _run_claude(
     prompt: str,
@@ -277,6 +297,63 @@ class ClaudeProvider(AIProvider):
             f"[Assistant]:"
         )
         return _run_claude(prompt, cwd=repo_path)
+
+    def re_review(
+        self,
+        pr_data: dict,
+        diff_files: list[dict],
+        root_threads: list[dict],
+        issue_comments: list[dict],
+    ) -> dict:
+        diff_ctx = _build_diff_context(
+            {f["filename"]: f.get("patch", "") for f in diff_files}
+        ) if diff_files else "No new commits since the last review."
+
+        threads_ctx = ""
+        if root_threads:
+            parts = []
+            for t in root_threads:
+                loc = f"{t.get('path', '')}:{t.get('line', '')}" if t.get("path") else "general"
+                parts.append(
+                    f"[github_id={t['id']}] {t.get('user',{}).get('login','?')} at {loc}:\n{t.get('body','')[:300]}"
+                )
+            threads_ctx = "\n\n".join(parts)
+        else:
+            threads_ctx = "No open review threads."
+
+        issue_ctx = "\n\n".join(
+            f"{c.get('user',{}).get('login','?')}: {c.get('body','')[:200]}"
+            for c in issue_comments
+        ) or "None."
+
+        prompt = f"""\
+You are re-reviewing a pull request that was previously reviewed.
+
+PR: {pr_data.get('title','')}
+Description: {pr_data.get('body') or '(none)'}
+
+NEW CHANGES SINCE LAST REVIEW:
+{diff_ctx}
+
+OPEN REVIEW THREADS (inline comments from reviewers):
+{threads_ctx}
+
+GENERAL PR DISCUSSION COMMENTS:
+{issue_ctx}
+
+Please:
+1. Write a concise markdown summary of what changed since the last review (2-5 bullet points). If no new changes, say so.
+2. For each open review thread listed above, decide:
+   - should_resolve: true if the concern was addressed in the new changes or is no longer relevant; false if it still needs attention or a response
+   - reason: 1-sentence explanation
+
+Return ONLY valid JSON matching the schema."""
+
+        raw = _run_claude(prompt, json_schema=_RE_REVIEW_SCHEMA)
+        try:
+            return _unwrap_json_envelope(raw)
+        except (json.JSONDecodeError, AttributeError):
+            return {"changes_summary": raw, "thread_opinions": []}
 
 
 def _unwrap_json_envelope(raw: str) -> dict:

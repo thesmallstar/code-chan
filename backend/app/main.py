@@ -6,7 +6,7 @@ from alembic.config import Config
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.routers import chunks, github, reviews, threads
+from app.routers import chunks, github, re_reviews, reviews, threads
 
 ALEMBIC_INI = os.path.join(os.path.dirname(__file__), "..", "alembic.ini")
 
@@ -30,6 +30,7 @@ app.add_middleware(
 
 app.include_router(github.router)
 app.include_router(reviews.router)
+app.include_router(re_reviews.router)
 app.include_router(chunks.router)
 app.include_router(threads.router)
 

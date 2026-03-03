@@ -4,7 +4,7 @@ from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.models import PullRequest, ReviewChunk, ReviewInstance, ReviewThread
+from app.models import PullRequest, ReviewChunk, ReviewInstance, ReviewRequestCache, ReviewThread
 from app.reviews.service import parse_pr_url, process_review
 from app.schemas import (
     ReviewChunkSummary,
@@ -108,6 +108,10 @@ def create_review(data: ReviewCreate, background_tasks: BackgroundTasks, db: Ses
     db.add(review)
     db.commit()
     db.refresh(review)
+
+    # Remove from requested-reviews cache so it doesn't reappear on next load
+    db.query(ReviewRequestCache).filter(ReviewRequestCache.pr_url == data.pr_url).delete()
+    db.commit()
 
     background_tasks.add_task(process_review, review.id)
 

@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.github.client import GitHubClient, get_github_token
-from app.models import ReviewRequestCache
+from app.models import PullRequest, ReviewInstance, ReviewRequestCache
 from app.schemas import GitHubVerifyResponse, ReviewRequestItem, ReviewRequestsResponse
 
 router = APIRouter(prefix="/api/github", tags=["github"])
@@ -34,6 +34,38 @@ def _cache_row_to_item(row: ReviewRequestCache) -> ReviewRequestItem:
     )
 
 
+def _attach_existing_reviews(items: list[ReviewRequestItem], db: Session) -> list[ReviewRequestItem]:
+    """Bulk-lookup whether chan has already reviewed each PR and attach review context."""
+    pr_urls = [item.pr_url for item in items]
+    if not pr_urls:
+        return items
+
+    prs = db.query(PullRequest).filter(PullRequest.url.in_(pr_urls)).all()
+    pr_by_url = {pr.url: pr for pr in prs}
+
+    pr_ids = [pr.id for pr in prs]
+    review_by_pr_id: dict[int, ReviewInstance] = {}
+    if pr_ids:
+        for r in (
+            db.query(ReviewInstance)
+            .filter(ReviewInstance.pull_request_id.in_(pr_ids))
+            .order_by(ReviewInstance.created_at.desc())
+            .all()
+        ):
+            review_by_pr_id.setdefault(r.pull_request_id, r)
+
+    enriched = []
+    for item in items:
+        pr = pr_by_url.get(item.pr_url)
+        review = review_by_pr_id.get(pr.id) if pr else None
+        enriched.append(item.model_copy(update={
+            "existing_review_id": review.id if review else None,
+            "existing_review_status": review.status if review else None,
+            "last_reviewed_at": review.created_at.isoformat() if review and review.created_at else None,
+        }))
+    return enriched
+
+
 def _query_cached_items(days: int, db: Session) -> ReviewRequestsResponse:
     q = db.query(ReviewRequestCache)
     if days > 0:
@@ -41,10 +73,8 @@ def _query_cached_items(days: int, db: Session) -> ReviewRequestsResponse:
         q = q.filter(ReviewRequestCache.updated_at >= cutoff)
     rows = q.order_by(ReviewRequestCache.updated_at.desc()).all()
     last_synced = db.query(func.max(ReviewRequestCache.last_synced_at)).scalar()
-    return ReviewRequestsResponse(
-        items=[_cache_row_to_item(r) for r in rows],
-        last_synced_at=last_synced,
-    )
+    items = _attach_existing_reviews([_cache_row_to_item(r) for r in rows], db)
+    return ReviewRequestsResponse(items=items, last_synced_at=last_synced)
 
 
 @router.get("/review-requests", response_model=ReviewRequestsResponse)
