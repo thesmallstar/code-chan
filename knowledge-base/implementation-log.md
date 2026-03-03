@@ -38,6 +38,33 @@
 - **Alembic migrations:** `a904c1266c2c`, `9970c026bb25`
 - **Tests:** 26 passing unit tests (`test_chunks.py`, `test_reviews.py`, `test_helpers.py`)
 
+## v0.3 — Re-review Tab + Thread Improvements + Bug Fixes
+
+- **Date:** 2026-03-03
+- **What:** Re-review feature (changes summary + thread opinions), thread panel improvements (outdated badge, resolve, colored diff), UTC date fix across app, cache-delete fix on review create, all-done badge suppression
+- **Key files changed:**
+  - `models.py` — `ReReview` model; `position` + `is_resolved` added to `ReviewThread`
+  - `schemas.py` — `ThreadOpinion`, `ReReviewResponse`; `ReviewThreadResponse` gets `position`/`is_resolved`; `ReviewRequestItem` gets `existing_review_id`/`last_reviewed_at`
+  - `github/client.py` — `get_commit_compare(owner, repo, base, head)` → `GET /repos/{owner}/{repo}/compare/{base}...{head}`
+  - `ai/base.py` — abstract `re_review(pr_data, diff_files, root_threads, issue_comments) -> dict`
+  - `ai/claude.py` — `re_review()` implementation using `_RE_REVIEW_SCHEMA` and `claude -p` structured output
+  - `reviews/re_review_service.py` (new) — `process_re_review()` background task: loads ReReview → PR → fetches current head SHA → compare diff → AI re-review → enrich opinions → DONE
+  - `routers/re_reviews.py` (new) — `POST /api/reviews/{id}/re-review` (create + queue) and `GET /api/re-reviews/{id}` (poll)
+  - `routers/reviews.py` — delete `ReviewRequestCache` row matching `pr_url` when review is created
+  - `routers/threads.py` — `PATCH /{id}/resolve` toggles `is_resolved`, returns `{is_resolved: bool}`
+  - `routers/github.py` — `_attach_existing_reviews()` bulk-queries PRs + latest ReviewInstance per PR; attaches to `ReviewRequestItem` via `model_copy(update={})`
+  - `main.py` — registers `re_reviews` router
+  - `ReviewInstance.jsx` — `ReReviewPanel` + `ThreadOpinionCard` components; "Re-review" sidebar tab; tab state updated to `'overview' | 'chunk' | 'threads' | 're-review'`
+  - `ThreadsPanel.jsx` — `DiffHunk` (colored lines); `parseUtc`/`fmtDate` UTC fix; outdated pill when `position === null`; resolve button + optimistic toggle
+  - `Landing.jsx` — `parseUtc`/`fmtDate`/`relativeDate` UTC helpers; "chan reviewed · Xd ago" badge on RequestRow; "re-review it" label; `handleStartReview` navigates to `/review/{id}` for existing reviews
+- **Alembic migration:** `94eacd111d09`
+- **Tests:** 38 passing (no new tests added for re-review)
+- **Key UX decisions:**
+  - Re-review is a tab inside ReviewInstance, NOT a separate page/route
+  - "re-review it" on Landing → `navigate('/review/{id}')`, then user clicks Re-review tab
+  - Thread opinions sorted: "respond first" before "can resolve"
+  - Old SHA stored at re-review creation time; compare API used to get diff; if same SHA → AI told "no new commits"
+
 ## v0.2 — Review Requests Cache + Refresh UX
 
 - **Date:** 2026-03-03
