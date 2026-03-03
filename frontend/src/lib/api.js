@@ -21,6 +21,7 @@ export const api = {
   // GitHub
   verifyGitHub: () => req('POST', '/api/github/verify'),
   getReviewRequests: (days = 14) => req('GET', `/api/github/review-requests?days=${days}`),
+  syncReviewRequests: (days = 14) => req('POST', `/api/github/review-requests/sync?days=${days}`),
 
   // Reviews
   listReviews: () => req('GET', '/api/reviews'),
