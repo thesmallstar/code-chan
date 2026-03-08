@@ -38,3 +38,9 @@ app.include_router(threads.router)
 @app.get("/api/health")
 def health_check():
     return {"status": "ok"}
+
+
+@app.get("/api/providers")
+def list_providers():
+    from app.ai import ProviderRegistry
+    return ProviderRegistry.available()

@@ -82,3 +82,19 @@
 - **Bug fixed:** `last_synced_at` stored as naive UTC in SQLite; frontend appended `Z` so browser parses it correctly as UTC instead of local time
 - **Tests:** 12 new tests in `test_github.py` (38 total passing)
 - **UX change:** Starting a review from "Requested Reviews" no longer navigates away — it removes the item from the list and appends to "Recent Reviews" in-place
+
+## v0.4 — Codex Provider + Factory Pattern + Provider Switcher
+
+- **Date:** 2026-03-08
+- **What:** Dual AI provider support (Claude Code + Codex) with factory pattern; user picks provider from frontend
+- **Key files changed:**
+  - `ai/base.py` — added `ProviderRegistry` (register decorator, create, available)
+  - `ai/__init__.py` — new file; auto-registers providers on import
+  - `ai/claude.py` — added `@ProviderRegistry.register("claude", label="Claude Code")` decorator
+  - `ai/codex.py` — full rewrite: `codex exec` non-interactive mode, `--output-schema` via temp files, all 5 `AIProvider` methods implemented natively (was delegating `re_review` to Claude)
+  - `reviews/service.py` — `get_ai_provider()` now uses `ProviderRegistry.create()` instead of manual if/else
+  - `main.py` — added `GET /api/providers` endpoint
+  - `Landing.jsx` — provider switcher (segmented toggle), selection persisted in localStorage, wired into both `handleSubmit` and `handleStartReview`
+  - `api.js` — added `getProviders()`
+- **Tests:** 51 passing (no regressions)
+- **No DB migration needed** — `model_provider` column already stored as free-form string

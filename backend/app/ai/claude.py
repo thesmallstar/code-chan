@@ -12,7 +12,7 @@ import subprocess
 from pathlib import Path
 from typing import Optional
 
-from app.ai.base import AIProvider
+from app.ai.base import AIProvider, ProviderRegistry
 from app.github.diff_parser import nearest_commentable_line
 
 logger = logging.getLogger(__name__)
@@ -203,6 +203,7 @@ def _truncate_patch(patch: str, max_lines: int = 40) -> str:
     return "\n".join(lines[:max_lines]) + f"\n  … ({len(lines) - max_lines} more lines)"
 
 
+@ProviderRegistry.register("claude", label="Claude Code")
 class ClaudeProvider(AIProvider):
     def plan_chunks(
         self,

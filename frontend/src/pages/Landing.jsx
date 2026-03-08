@@ -102,6 +102,15 @@ function ReviewRow({ review, onClick }) {
               </span>
             )}
             <StatusBadge status={review.status} />
+            {review.model_provider && (
+              <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium
+                ${review.model_provider === 'codex'
+                  ? 'bg-emerald-50 text-emerald-700'
+                  : 'bg-orange-50 text-orange-700'
+                }`}>
+                {review.model_provider === 'codex' ? 'codex' : 'claude'}
+              </span>
+            )}
             {prStateBadge && (
               <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${prStateBadge.cls}`}>
                 {prStateBadge.label}
@@ -185,6 +194,17 @@ function ReviewRequestRow({ item, onStart, starting }) {
   )
 }
 
+const PROVIDER_KEY = 'selectedProvider'
+
+const PROVIDERS = [
+  { name: 'claude', label: 'Claude Code' },
+  { name: 'codex', label: 'Codex' },
+]
+
+function getStoredProvider() {
+  return localStorage.getItem(PROVIDER_KEY) || 'claude'
+}
+
 export default function Landing() {
   const navigate = useNavigate()
   const [ghStatus, setGhStatus] = useState({ state: 'checking', username: null })
@@ -197,7 +217,13 @@ export default function Landing() {
   const [requestDays, setRequestDays] = useState(14)
   const [requestsLoading, setRequestsLoading] = useState(false)
   const [startingUrl, setStartingUrl] = useState(null)
+  const [provider, setProviderState] = useState(getStoredProvider)
   const syncIntervalRef = useRef(null)
+
+  const setProvider = (name) => {
+    setProviderState(name)
+    localStorage.setItem(PROVIDER_KEY, name)
+  }
 
   const checkGitHub = () => {
     setGhStatus({ state: 'checking', username: null })
@@ -263,7 +289,7 @@ export default function Landing() {
     }
     setStartingUrl(item.pr_url)
     try {
-      const { review_id } = await api.createReview(item.pr_url, 'claude')
+      const { review_id } = await api.createReview(item.pr_url, provider)
       const newReview = await api.getReview(review_id)
       setReviewRequests((prev) => prev.filter((r) => r.pr_url !== item.pr_url))
       setReviews((prev) => [...prev, newReview])
@@ -280,7 +306,7 @@ export default function Landing() {
     setLoading(true)
     setError(null)
     try {
-      const { review_id } = await api.createReview(prUrl.trim(), 'claude')
+      const { review_id } = await api.createReview(prUrl.trim(), provider)
       navigate(`/review/${review_id}`)
     } catch (err) {
       setError(err.message)
@@ -344,12 +370,26 @@ export default function Landing() {
               />
             </div>
 
-            <div className="flex items-center gap-2 px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg">
-              <span className="text-xs text-gray-500">powered by</span>
-              <span className="text-xs font-semibold text-gray-700 mono">claude code</span>
-              <span className="ml-auto text-xs text-gray-400">
-                make sure <code className="bg-gray-100 px-1 rounded">claude</code> CLI is authenticated
-              </span>
+            <div className="space-y-2">
+              <div className="flex items-center gap-1 p-1 bg-gray-100 rounded-lg">
+                {PROVIDERS.map(({ name, label }) => (
+                  <button
+                    key={name}
+                    type="button"
+                    onClick={() => setProvider(name)}
+                    className={`flex-1 text-xs font-medium py-1.5 px-3 rounded-md transition-colors
+                      ${provider === name
+                        ? 'bg-gray-900 text-white shadow-sm'
+                        : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+                      }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+              <p className="text-xs text-gray-400 text-center">
+                make sure <code className="bg-gray-100 px-1 rounded">{provider === 'claude' ? 'claude' : 'codex'}</code> CLI is authenticated
+              </p>
             </div>
 
             {error && <p className="text-sm text-red-600">{error}</p>}

@@ -115,6 +115,15 @@ function TopBar({ review, onSync, navigate }) {
             </a>
           )}
           {review && <StatusBadge status={review.status} />}
+          {review?.model_provider && (
+            <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium
+              ${review.model_provider === 'codex'
+                ? 'bg-emerald-50 text-emerald-700'
+                : 'bg-orange-50 text-orange-700'
+              }`}>
+              {review.model_provider === 'codex' ? 'codex' : 'claude'}
+            </span>
+          )}
         </div>
         {pr?.author && (
           <span className="text-xs text-gray-400">by {pr.author}</span>

@@ -25,10 +25,32 @@
 ## Pluggable AI provider via base class
 
 - **Date:** 2026-03-01
-- **Status:** Decided
+- **Status:** Superseded by factory pattern (2026-03-08)
 - **Decision:** `AIProvider` ABC in `app/ai/base.py` with `codex.py` (OpenAI) and `claude.py` (Anthropic) implementations
 - **Why:** Lets user choose provider per review session; trivial to add new providers
 - **Alternatives considered:** Hard-coded provider, LangChain abstraction (too heavy)
+
+---
+
+## Factory pattern with ProviderRegistry
+
+- **Date:** 2026-03-08
+- **Status:** Decided
+- **Decision:** `ProviderRegistry` class in `app/ai/base.py` with `register` decorator, `create(name)`, and `available()` methods. Each provider self-registers via `@ProviderRegistry.register("name", label="Label")`. Auto-registration via `app/ai/__init__.py` imports.
+- **Why:** Eliminates manual if/else dispatch in `service.py`; adding a new provider requires zero changes to routing or service code — just a new file with a decorator. `GET /api/providers` endpoint exposes available providers for the frontend.
+- **Alternatives considered:** Manual if/else (what we had — doesn't scale), plugin discovery via `importlib` (overkill for 2-3 providers)
+- **Trade-offs:** Providers must be imported for registration; handled by `__init__.py`
+
+---
+
+## Codex CLI: `codex exec` non-interactive mode
+
+- **Date:** 2026-03-08
+- **Status:** Decided
+- **Decision:** Use `codex exec "prompt" -s read-only --ephemeral` for all Codex AI calls. Structured JSON output via `--output-schema <temp_file.json>` (file path, not inline).
+- **Why:** The old `codex -q` flag is legacy (TypeScript CLI). Modern Codex CLI (Rust) uses `codex exec` for non-interactive mode. `-s read-only` keeps it safe; `--ephemeral` avoids session file clutter.
+- **Key difference from Claude:** `--output-schema` takes a file path, not inline JSON — requires writing temp schema files and cleaning up.
+- **Alternatives considered:** OpenAI Python SDK fallback (removed for simplicity; assume CLI is authenticated, same pattern as Claude provider)
 
 ---
 
