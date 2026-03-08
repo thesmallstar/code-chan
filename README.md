@@ -154,17 +154,6 @@ code-chan/
 
 ---
 
-## Roadmap
-
-- [x] Additional AI providers (Codex, ~~Gemini, local models via Ollama~~)
-- [ ] GitHub App / CI mode (run chan on every PR automatically)
-- [ ] Persistent chat history across sessions
-- [ ] Support for GitLab / Bitbucket
-![1772986109017](image/README/1772986109017.png)![1772986110361](image/README/1772986110361.png)![1772986114315](image/README/1772986114315.png)![1772986117748](image/README/1772986117748.png)![1772986121261](image/README/1772986121261.png)![1772986124335](image/README/1772986124335.png)![1772986124869](image/README/1772986124869.png)![1772986125011](image/README/1772986125011.png)- [ ] PR comparison view (base vs head)
-- [ ] Configurable review rules / prompts per repo
-
----
-
 ## Contributing
 
 Contributions are welcome. See [docs/contributing.md](docs/contributing.md) for details.
