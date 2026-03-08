@@ -12,11 +12,22 @@
 
 Paste a GitHub PR link → chan reads the whole diff, groups changes into logical review chunks, writes a walkthrough for each one, suggests inline comments you can edit and post directly to GitHub, and lets you chat with it about any part of the code.
 
-![Landing page — paste a PR link and see recent reviews](docs/screenshot-landing.png)
+## Screenshots
 
-![Review instance — chan's take on the PR](docs/screenshot-review.png)
+### Landing page
+Shows the PR entry flow and the recent reviews list.
 
-![Chunk view — walkthrough, diff, chat, and draft comments](docs/screenshot-chunk.png)
+![Landing page with PR input and recent reviews](docs/screenshot-landing.png)
+
+### Review overview
+Shows chan's high-level read on the PR and the generated review structure.
+
+![Review overview with AI summary and review navigation](docs/screenshot-review.png)
+
+### Chunk review workspace
+Shows the walkthrough, diff, chat, and draft inline comments for a review chunk.
+
+![Chunk review workspace with diff, chat, and draft comments](docs/screenshot-chunk.png)
 
 ---
 
