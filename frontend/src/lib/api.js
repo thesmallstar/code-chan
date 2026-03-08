@@ -17,6 +17,7 @@ async function req(method, path, body) {
 
 export const api = {
   health: () => req('GET', '/api/health'),
+  getProviders: () => req('GET', '/api/providers'),
 
   // GitHub
   verifyGitHub: () => req('POST', '/api/github/verify'),

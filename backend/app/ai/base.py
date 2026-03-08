@@ -1,4 +1,4 @@
-"""Abstract base class for AI review providers."""
+"""Abstract base class for AI review providers and provider factory."""
 
 from abc import ABC, abstractmethod
 from pathlib import Path
@@ -99,3 +99,26 @@ class AIProvider(ABC):
                 ]
             }
         """
+
+
+class ProviderRegistry:
+    _providers: dict[str, dict] = {}
+
+    @classmethod
+    def register(cls, name: str, label: str):
+        def decorator(provider_cls: type[AIProvider]):
+            cls._providers[name] = {"cls": provider_cls, "label": label}
+            return provider_cls
+        return decorator
+
+    @classmethod
+    def create(cls, name: str) -> AIProvider:
+        entry = cls._providers.get(name)
+        if not entry:
+            available = list(cls._providers.keys())
+            raise ValueError(f"Unknown provider: {name}. Available: {available}")
+        return entry["cls"]()
+
+    @classmethod
+    def available(cls) -> list[dict]:
+        return [{"name": n, "label": e["label"]} for n, e in cls._providers.items()]

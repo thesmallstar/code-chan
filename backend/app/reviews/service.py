@@ -37,12 +37,11 @@ def parse_pr_url(url: str) -> tuple[str, str, int]:
     return m.group("owner"), m.group("repo"), int(m.group("number"))
 
 
+from app.ai import ProviderRegistry
+
+
 def get_ai_provider(model_provider: str):
-    if model_provider == "codex":
-        from app.ai.codex import CodexProvider
-        return CodexProvider()
-    from app.ai.claude import ClaudeProvider
-    return ClaudeProvider()
+    return ProviderRegistry.create(model_provider)
 
 
 def _set_status(db: Session, review: ReviewInstance, status: str, error: str = None):

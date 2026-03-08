@@ -8,7 +8,7 @@
 
 # code-chan
 
-**AI-assisted code review, powered by Claude Code CLI.**
+**AI-assisted code review, powered by Claude Code or Codex CLI.**
 
 Paste a GitHub PR link → chan reads the whole diff, groups changes into logical review chunks, writes a walkthrough for each one, suggests inline comments you can edit and post directly to GitHub, and lets you chat with it about any part of the code.
 
@@ -28,7 +28,8 @@ Paste a GitHub PR link → chan reads the whole diff, groups changes into logica
 - **Thread discussion** — see existing PR comments with replies nested. Ask chan about any thread: "is this concern valid?", "how should I address this?"
 - **Re-review** — after you've pushed fixes, hit the Re-review tab: chan summarizes what changed since the last review and gives an opinion on each open thread (can resolve / needs a reply).
 - **Requested Reviews** — chan shows PRs where your review is requested. One click to start a review or re-review. PRs chan has already reviewed are badged with "chan reviewed · Xd ago".
-- **No API keys** — uses `claude` CLI (Claude Code) and `gh` CLI. Auth happens through the tools you already have.
+- **Dual AI providers** — choose between Claude Code or Codex per review. Switch providers on the fly from the UI.
+- **No API keys** — uses `claude` or `codex` CLI and `gh` CLI. Auth happens through the tools you already have.
 - **Fully local** — SQLite database, cloned repos stay on your machine, nothing leaves except GitHub API calls.
 
 ---
@@ -39,7 +40,7 @@ Paste a GitHub PR link → chan reads the whole diff, groups changes into logica
 
 | Tool | Install |
 |------|---------|
-| `claude` CLI | [claude.ai/code](https://claude.ai/code) → `claude auth login` |
+| `claude` CLI **or** `codex` CLI | [claude.ai/code](https://claude.ai/code) → `claude auth login` **OR** [openai.com/codex](https://openai.com/codex) → `codex login` |
 | `gh` CLI | [cli.github.com](https://cli.github.com) → `gh auth login` |
 | Python 3.13+ | [python.org](https://python.org) |
 | Node 18+ | [nodejs.org](https://nodejs.org) |
@@ -113,7 +114,7 @@ Hit **re-run chan** in the top bar to re-fetch the PR and re-run the full review
 |-------|------|
 | Frontend | React 19 + Vite + Tailwind CSS v4 |
 | Backend | FastAPI + SQLAlchemy (SQLite) |
-| AI | Claude Code CLI (`claude -p`) |
+| AI | Claude Code CLI (`claude -p`) **or** Codex CLI (`codex exec`) with pluggable provider pattern |
 | GitHub | `gh` CLI + GitHub REST API |
 | Python env | `uv` |
 
@@ -126,7 +127,7 @@ code-chan/
 ├── backend/
 │   └── app/
 │       ├── github/          # GitHub API client, diff parser, repo clone manager
-│       ├── ai/              # Claude Code CLI provider (+ codex stub for contributors)
+│       ├── ai/              # Pluggable AI provider (Claude Code + Codex with factory pattern)
 │       ├── reviews/         # LLM-based chunker, review pipeline, re-review service
 │       ├── routers/         # FastAPI route handlers (reviews, chunks, threads, re-reviews, github)
 │       ├── models.py        # SQLAlchemy models
@@ -155,10 +156,10 @@ code-chan/
 
 ## Roadmap
 
+- [x] Additional AI providers (Codex, ~~Gemini, local models via Ollama~~)
 - [ ] GitHub App / CI mode (run chan on every PR automatically)
 - [ ] Persistent chat history across sessions
 - [ ] Support for GitLab / Bitbucket
-- [ ] Additional AI providers (Codex, Gemini, local models via Ollama)
 - [ ] PR comparison view (base vs head)
 - [ ] Configurable review rules / prompts per repo
 
